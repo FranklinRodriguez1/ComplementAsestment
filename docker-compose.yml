@@ -1,0 +1,52 @@
+services:
+  db:
+    image: pgvector/pgvector:pg16
+    container_name: rw_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${DB_NAME}
+      POSTGRES_USER: ${DB_ADMIN_USER}
+      POSTGRES_PASSWORD: ${DB_ADMIN_PASSWORD}
+    ports:
+      - "${DB_PORT:-5432}:5432"
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_ADMIN_USER} -d ${DB_NAME}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: rw_backend
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      DB_HOST: db
+    ports:
+      - "${BACKEND_PORT:-4000}:4000"
+    depends_on:
+      db:
+        condition: service_healthy
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:4000}
+    container_name: rw_frontend
+    restart: unless-stopped
+    env_file:
+      - .env
+    ports:
+      - "${FRONTEND_PORT:-3000}:3000"
+    depends_on:
+      - backend
+
+volumes:
+  db_data:
