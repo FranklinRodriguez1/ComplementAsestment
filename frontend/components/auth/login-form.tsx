@@ -55,8 +55,8 @@ export function LoginForm() {
     <div className="flex min-h-dvh items-center justify-center bg-background px-4">
       <div className="flex w-full max-w-sm flex-col gap-6">
         <div className="flex flex-col items-center gap-2 text-center">
-          <span className="flex h-12 w-12 items-center justify-center rounded-xl bg-brand/15 text-brand">
-            <MessageSquare className="h-6 w-6" aria-hidden="true" />
+          <span className="flex h-20 w-20 items-center justify-center rounded-2xl bg-brand/15 text-brand-text">
+            <MessageSquare className="h-icon-xl w-icon-xl" aria-hidden="true" />
           </span>
           <h1 className="text-lg font-semibold text-foreground">{tApp("name")}</h1>
           <p className="text-sm text-foreground-secondary">{t("subtitle")}</p>
@@ -75,7 +75,7 @@ export function LoginForm() {
               aria-invalid={Boolean(errors.email)}
               className="rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-brand"
             />
-            {errors.email ? <p className="text-xs text-status-error">{errors.email.message}</p> : null}
+            {errors.email ? <p className="text-xs text-status-error-text">{errors.email.message}</p> : null}
           </div>
 
           <div className="flex flex-col gap-1.5">
@@ -91,12 +91,12 @@ export function LoginForm() {
               className="rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-brand"
             />
             {errors.password ? (
-              <p className="text-xs text-status-error">{errors.password.message}</p>
+              <p className="text-xs text-status-error-text">{errors.password.message}</p>
             ) : null}
           </div>
 
           {serverError ? (
-            <p className="rounded-lg bg-status-error/10 px-3 py-2 text-sm text-status-error">
+            <p className="rounded-lg bg-status-error/10 px-3 py-2 text-sm text-status-error-text">
               {serverError === "credentials" ? t("invalidCredentials") : t("networkError")}
             </p>
           ) : null}

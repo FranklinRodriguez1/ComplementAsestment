@@ -18,7 +18,11 @@ export function ThemeToggle() {
       title={label}
       className="inline-flex h-9 w-9 items-center justify-center rounded-lg text-foreground-secondary transition-colors hover:bg-background-secondary hover:text-foreground"
     >
-      {theme === "dark" ? <Sun className="h-4 w-4" aria-hidden="true" /> : <Moon className="h-4 w-4" aria-hidden="true" />}
+      {theme === "dark" ? (
+        <Sun className="h-icon-md w-icon-md" aria-hidden="true" />
+      ) : (
+        <Moon className="h-icon-md w-icon-md" aria-hidden="true" />
+      )}
     </button>
   );
 }

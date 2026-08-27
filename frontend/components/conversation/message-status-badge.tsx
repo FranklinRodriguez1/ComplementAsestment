@@ -19,11 +19,13 @@ export function MessageStatusBadge({ status }: { status: MessageStatus }) {
   const isPending = status === "pending";
   const Icon = isPending ? Clock : AlertCircle;
   const label = isPending ? t("statusPending") : t("statusFailed");
-  const color = isPending ? "text-status-pending" : "text-status-error";
+  // Accessible text/icon variants (STYLE.md): the base status colors are
+  // tuned for backgrounds/dark mode and fall short of 4.5:1 on white.
+  const color = isPending ? "text-status-pending-text" : "text-status-error-text";
 
   return (
     <span className={`inline-flex items-center gap-1 text-xs ${color}`}>
-      <Icon className="h-3 w-3" aria-hidden="true" />
+      <Icon className="h-icon-sm w-icon-sm" aria-hidden="true" />
       {label}
     </span>
   );
