@@ -33,3 +33,7 @@ export class NotFoundError extends AppError {
 export class ConflictError extends AppError {
   readonly code = "CONFLICT";
 }
+
+export class ServiceUnavailableError extends AppError {
+  readonly code = "SERVICE_UNAVAILABLE";
+}

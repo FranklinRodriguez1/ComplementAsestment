@@ -1,0 +1,94 @@
+import { ServiceUnavailableError } from "@domain/errors/app-error";
+import type { AIProvider, ChatCompletion, ChatInput } from "@domain/services/ai-provider";
+
+const OPENAI_BASE_URL = "https://api.openai.com/v1";
+
+interface EmbeddingsResponse {
+  data: { index: number; embedding: number[] }[];
+}
+
+interface ChatCompletionsResponse {
+  model: string;
+  choices: { message: { content: string | null } }[];
+  usage?: { prompt_tokens: number; completion_tokens: number };
+}
+
+/**
+ * First (and only, for now) AIProvider implementation. Plain `fetch`
+ * against the OpenAI REST API instead of the official SDK: two endpoints
+ * and a bearer header don't justify a dependency, and every line stays
+ * explainable. Failures surface as ServiceUnavailableError (503) so a
+ * vendor outage is never confused with a bug in our own code (500).
+ */
+export class OpenAIProvider implements AIProvider {
+  constructor(
+    private readonly apiKey: string,
+    private readonly chatModel: string,
+    private readonly embeddingModel: string,
+  ) {}
+
+  private async post<T>(path: string, body: unknown): Promise<T> {
+    let response: Response;
+    try {
+      response = await fetch(`${OPENAI_BASE_URL}${path}`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${this.apiKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(body),
+      });
+    } catch {
+      throw new ServiceUnavailableError("could not reach the AI provider");
+    }
+
+    if (!response.ok) {
+      // The provider's error body can echo our request back; log it
+      // server-side only and keep the client message generic.
+      const detail = await response.text().catch(() => "");
+      console.error(`OpenAI ${path} failed (${response.status}): ${detail.slice(0, 500)}`);
+      throw new ServiceUnavailableError(`AI provider request failed (status ${response.status})`);
+    }
+
+    return (await response.json()) as T;
+  }
+
+  async embed(text: string): Promise<number[]> {
+    const [embedding] = await this.embedMany([text]);
+    return embedding;
+  }
+
+  async embedMany(texts: string[]): Promise<number[][]> {
+    const result = await this.post<EmbeddingsResponse>("/embeddings", {
+      model: this.embeddingModel,
+      input: texts,
+    });
+    // The API documents that `data` can come back out of order; sort by
+    // index so row N always matches input N.
+    return [...result.data].sort((a, b) => a.index - b.index).map((item) => item.embedding);
+  }
+
+  async chat(input: ChatInput): Promise<ChatCompletion> {
+    const result = await this.post<ChatCompletionsResponse>("/chat/completions", {
+      model: this.chatModel,
+      temperature: 0.2,
+      max_tokens: 600,
+      messages: [
+        { role: "system", content: input.system },
+        { role: "user", content: input.user },
+      ],
+    });
+
+    const content = result.choices[0]?.message.content;
+    if (!content) {
+      throw new ServiceUnavailableError("AI provider returned an empty answer");
+    }
+
+    return {
+      content,
+      model: result.model,
+      promptTokens: result.usage?.prompt_tokens ?? 0,
+      completionTokens: result.usage?.completion_tokens ?? 0,
+    };
+  }
+}

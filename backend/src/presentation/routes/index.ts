@@ -1,10 +1,12 @@
 import { Router, type RequestHandler } from "express";
 import type { AuthController } from "../controllers/auth.controller";
 import type { ChannelsController } from "../controllers/channels.controller";
+import type { CopilotController } from "../controllers/copilot.controller";
 import type { MessagesController } from "../controllers/messages.controller";
 import type { UsersController } from "../controllers/users.controller";
 import { authRoutes } from "./auth.routes";
 import { channelsRoutes } from "./channels.routes";
+import { copilotRoutes } from "./copilot.routes";
 import { channelMessagesRoutes, messagesRoutes } from "./messages.routes";
 import { usersRoutes } from "./users.routes";
 
@@ -13,6 +15,7 @@ export interface RouterDependencies {
   usersController: UsersController;
   channelsController: ChannelsController;
   messagesController: MessagesController;
+  copilotController: CopilotController;
   requireAuth: RequestHandler;
 }
 
@@ -27,6 +30,7 @@ export function createApiRouter(deps: RouterDependencies): Router {
     channelMessagesRoutes(deps.messagesController, deps.requireAuth),
   );
   router.use("/messages", messagesRoutes(deps.messagesController, deps.requireAuth));
+  router.use("/copilot", copilotRoutes(deps.copilotController, deps.requireAuth));
 
   return router;
 }

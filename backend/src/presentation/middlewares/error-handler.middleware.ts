@@ -4,6 +4,7 @@ import {
   ConflictError,
   ForbiddenError,
   NotFoundError,
+  ServiceUnavailableError,
   UnauthorizedError,
   ValidationError,
 } from "@domain/errors/app-error";
@@ -14,6 +15,7 @@ const STATUS_BY_ERROR = new Map<Function, number>([
   [ForbiddenError, 403],
   [NotFoundError, 404],
   [ConflictError, 409],
+  [ServiceUnavailableError, 503],
 ]);
 
 /**

@@ -4,6 +4,7 @@ import type { EditMessageUseCase } from "@application/use-cases/messages/edit-me
 import type { ListChannelMessagesUseCase } from "@application/use-cases/messages/list-channel-messages.usecase";
 import type { SearchMessagesUseCase } from "@application/use-cases/messages/search-messages.usecase";
 import type { SendMessageUseCase } from "@application/use-cases/messages/send-message.usecase";
+import type { MessageEmbedder } from "@application/services/message-embedder";
 import type { RealtimePublisher } from "@domain/services/realtime-publisher";
 
 export class MessagesController {
@@ -14,6 +15,7 @@ export class MessagesController {
     private readonly deleteMessage: DeleteMessageUseCase,
     private readonly searchMessages: SearchMessagesUseCase,
     private readonly realtimePublisher: RealtimePublisher,
+    private readonly messageEmbedder: MessageEmbedder,
   ) {}
 
   list = async (req: Request, res: Response): Promise<void> => {
@@ -28,11 +30,17 @@ export class MessagesController {
     // other tabs/devices, so the REST response and the socket event never
     // race each other into disagreeing about whether the send succeeded.
     this.realtimePublisher.publishNewMessage(message);
+    // Fire-and-forget: semantic-search embedding is generated after the
+    // response, never blocking it (see MessageEmbedder).
+    this.messageEmbedder.embedInBackground(req.userId!, message.id, message.content);
     res.status(201).json({ message });
   };
 
   edit = async (req: Request, res: Response): Promise<void> => {
     const message = await this.editMessage.execute(req.userId!, req.params.messageId, req.body);
+    // The search-vector trigger cleared the old embedding (content
+    // changed); re-embed the new content in the background.
+    this.messageEmbedder.embedInBackground(req.userId!, message.id, message.content);
     res.status(200).json({ message });
   };
 

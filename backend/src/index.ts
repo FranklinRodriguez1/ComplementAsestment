@@ -8,11 +8,13 @@ import { UpdateProfileUseCase } from "@application/use-cases/users/update-profil
 import { CreateChannelUseCase } from "@application/use-cases/channels/create-channel.usecase";
 import { AddChannelMemberUseCase } from "@application/use-cases/channels/add-channel-member.usecase";
 import { ListMyChannelsUseCase } from "@application/use-cases/channels/list-my-channels.usecase";
+import { AskCopilotUseCase } from "@application/use-cases/copilot/ask-copilot.usecase";
 import { ListChannelMessagesUseCase } from "@application/use-cases/messages/list-channel-messages.usecase";
 import { SendMessageUseCase } from "@application/use-cases/messages/send-message.usecase";
 import { EditMessageUseCase } from "@application/use-cases/messages/edit-message.usecase";
 import { DeleteMessageUseCase } from "@application/use-cases/messages/delete-message.usecase";
 import { SearchMessagesUseCase } from "@application/use-cases/messages/search-messages.usecase";
+import { MessageEmbedder } from "@application/services/message-embedder";
 import cors from "cors";
 import cookieParser from "cookie-parser";
 import express from "express";
@@ -21,6 +23,9 @@ import { pool } from "@infrastructure/database/pool";
 import { PgUserRepository } from "@infrastructure/database/repositories/pg-user-repository";
 import { PgChannelRepository } from "@infrastructure/database/repositories/pg-channel-repository";
 import { PgMessageRepository } from "@infrastructure/database/repositories/pg-message-repository";
+import { PgCopilotRepository } from "@infrastructure/database/repositories/pg-copilot-repository";
+import { OpenAIProvider } from "@infrastructure/ai/openai-provider";
+import { loadSystemPrompt } from "@infrastructure/ai/system-prompt";
 import { BcryptPasswordHasher } from "@infrastructure/auth/bcrypt-password-hasher";
 import { JwtTokenService } from "@infrastructure/auth/jwt-token-service";
 import { createSocketServer } from "@infrastructure/sockets/socket-server";
@@ -28,6 +33,7 @@ import { SocketRealtimePublisher } from "@infrastructure/sockets/realtime-publis
 import { AuthController } from "@presentation/controllers/auth.controller";
 import { UsersController } from "@presentation/controllers/users.controller";
 import { ChannelsController } from "@presentation/controllers/channels.controller";
+import { CopilotController } from "@presentation/controllers/copilot.controller";
 import { MessagesController } from "@presentation/controllers/messages.controller";
 import { createAuthMiddleware } from "@presentation/middlewares/auth.middleware";
 import { correlationIdMiddleware } from "@presentation/middlewares/correlation-id.middleware";
@@ -48,6 +54,20 @@ import { createApiRouter } from "@presentation/routes/index";
 const userRepository = new PgUserRepository(pool);
 const channelRepository = new PgChannelRepository(pool);
 const messageRepository = new PgMessageRepository(pool);
+const copilotRepository = new PgCopilotRepository(pool);
+
+// The AI provider is optional infrastructure: with no (real) key the app
+// still boots and every non-copilot feature works; copilot requests get a
+// clear 503 and new messages simply stay un-embedded until backfilled.
+const aiConfigured = env.OPENAI_API_KEY.length > 0 && !env.OPENAI_API_KEY.startsWith("sk-replace");
+const aiProvider = aiConfigured
+  ? new OpenAIProvider(env.OPENAI_API_KEY, env.OPENAI_CHAT_MODEL, env.OPENAI_EMBEDDING_MODEL)
+  : null;
+if (!aiConfigured) {
+  console.warn("OPENAI_API_KEY not set: copilot disabled (POST /copilot/ask will answer 503)");
+}
+const PROMPT_VERSION = "v1";
+const systemPromptTemplate = loadSystemPrompt(PROMPT_VERSION);
 
 const passwordHasher = new BcryptPasswordHasher();
 const tokenService = new JwtTokenService(
@@ -75,11 +95,22 @@ const editMessage = new EditMessageUseCase(messageRepository);
 const deleteMessage = new DeleteMessageUseCase(messageRepository);
 const searchMessages = new SearchMessagesUseCase(messageRepository);
 
+const askCopilot = new AskCopilotUseCase(
+  aiProvider,
+  copilotRepository,
+  userRepository,
+  systemPromptTemplate,
+  PROMPT_VERSION,
+  env.OPENAI_CHAT_MODEL,
+);
+const messageEmbedder = new MessageEmbedder(aiProvider, copilotRepository);
+
 // --- presentation ---
 const requireAuth = createAuthMiddleware(tokenService);
 const authController = new AuthController(registerUser, loginUser, refreshSession);
 const usersController = new UsersController(getProfile, updateProfile);
 const channelsController = new ChannelsController(listMyChannels, createChannel, addChannelMember);
+const copilotController = new CopilotController(askCopilot);
 
 const app = express();
 const httpServer = createServer(app);
@@ -97,6 +128,7 @@ const messagesController = new MessagesController(
   deleteMessage,
   searchMessages,
   realtimePublisher,
+  messageEmbedder,
 );
 
 app.use(cors({ origin: env.CORS_ORIGIN, credentials: true }));
@@ -108,6 +140,10 @@ app.get("/health", (_req, res) => {
   res.status(200).json({ status: "ok" });
 });
 
+app.get("/", (_req, res) => {
+  res.send("Hello, World!");
+});
+
 app.use(
   "/",
   createApiRouter({
@@ -115,6 +151,7 @@ app.use(
     usersController,
     channelsController,
     messagesController,
+    copilotController,
     requireAuth,
   }),
 );

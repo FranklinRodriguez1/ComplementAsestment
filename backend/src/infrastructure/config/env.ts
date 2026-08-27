@@ -21,6 +21,13 @@ const envSchema = z.object({
   JWT_ACCESS_EXPIRES_IN: z.string().min(1),
   JWT_REFRESH_SECRET: z.string().min(16),
   JWT_REFRESH_EXPIRES_IN: z.string().min(1),
+
+  // AI copilot. The key is optional on purpose: without it the app still
+  // boots and every non-copilot feature works; copilot endpoints answer
+  // 503 (see the composition root in index.ts).
+  OPENAI_API_KEY: z.string().default(""),
+  OPENAI_CHAT_MODEL: z.string().default("gpt-4o-mini"),
+  OPENAI_EMBEDDING_MODEL: z.string().default("text-embedding-3-small"),
 });
 
 function loadEnv() {
