@@ -1,0 +1,139 @@
+{
+  "_meta": {
+    "description": "Sample data for bd_franklin_rodriguez_thompson. Designed to demonstrate the non-negotiable requirement (per-channel isolation) live, without having to create data by hand.",
+    "demo_password": "Demo1234!",
+    "demo_password_note": "Every user in this seed shares this DEMO password. The password_hash values below are real bcrypt hashes (cost 12) of that value -- the plaintext password is never stored, not even in test data.",
+    "loading_order": "users -> channels -> channel_members -> messages -> message_reads -> copilot_usage_logs (respects the FKs)."
+  },
+
+  "users": [
+    {
+      "id": "339d17d2-314d-4980-9c72-92a9949888c8",
+      "email": "ana@rewire.dev",
+      "password_hash": "$2b$12$VN/pV2.U578XHeyqx2HX0OgOmy2iefMhu1ckbw6o5iNSBoa8mEtEC",
+      "full_name": "Ana Perez",
+      "job_title": "Engineering Lead"
+    },
+    {
+      "id": "2ade5a25-ac3c-45d3-9ff4-e1e32f527fbf",
+      "email": "bruno@rewire.dev",
+      "password_hash": "$2b$12$wU9/3V4hl1RQmFIZYOO3Y.vL.jD8L8hWSdYnK6oyOIHW6467M/dHi",
+      "full_name": "Bruno Diaz",
+      "job_title": "Product Designer"
+    },
+    {
+      "id": "95fa95cf-06c5-4ce8-9ac7-10263739c092",
+      "email": "carla@rewire.dev",
+      "password_hash": "$2b$12$/HQRHPJ2vbO/Tvqi0w.8fufaCp78UttqRInF0YUxoH0XfkrFaRdSC",
+      "full_name": "Carla Ruiz",
+      "job_title": "Product Manager"
+    },
+    {
+      "id": "1970b2a5-85ad-4cad-8ef9-dfb66c3f14f8",
+      "email": "diego@rewire.dev",
+      "password_hash": "$2b$12$AnQRXaUb92PxTJeJx4jAEe8pvFTMV0WjIMizqkmws88JktJLxt0N6",
+      "full_name": "Diego Fernandez",
+      "job_title": "Backend Engineer"
+    },
+    {
+      "id": "2eb0c9c7-2fb1-41cb-8e66-5100b702bf28",
+      "email": "elena@rewire.dev",
+      "password_hash": "$2b$12$EPrY1HDZU3Dj.pPh8etpaet0OmdN0kS4ylHre1uX1sq/myjZ2dihi",
+      "full_name": "Elena Torres",
+      "job_title": "QA Engineer"
+    }
+  ],
+
+  "channels": [
+    {
+      "id": "bcde9d58-12ec-4442-9532-f1259b3e4443",
+      "name": "general",
+      "description": "Team-wide announcements and conversation",
+      "created_by": "user_ana"
+    },
+    {
+      "id": "2e410814-281f-46db-b983-1c9fb46e6c47",
+      "name": "backend",
+      "description": "Infrastructure, database, API",
+      "created_by": "user_ana"
+    },
+    {
+      "id": "06720dcf-971e-4dd0-b862-c314ed4d8833",
+      "name": "design",
+      "description": "Product design and UX",
+      "created_by": "user_bruno"
+    }
+  ],
+
+  "channel_members": [
+    { "channel": "general", "user": "user_ana",   "added_by": "user_ana" },
+    { "channel": "general", "user": "user_bruno", "added_by": "user_ana" },
+    { "channel": "general", "user": "user_carla", "added_by": "user_ana" },
+    { "channel": "general", "user": "user_diego", "added_by": "user_ana" },
+    { "channel": "general", "user": "user_elena", "added_by": "user_ana" },
+
+    { "channel": "backend", "user": "user_ana",   "added_by": "user_ana" },
+    { "channel": "backend", "user": "user_diego", "added_by": "user_ana" },
+    { "channel": "backend", "user": "user_elena", "added_by": "user_ana" },
+
+    { "channel": "design", "user": "user_bruno", "added_by": "user_bruno" },
+    { "channel": "design", "user": "user_carla", "added_by": "user_bruno" }
+  ],
+
+  "_business_rules_implicit": [
+    "user_bruno and user_carla were NEVER added to 'backend': they must get 0 results if they search for or ask about its content, even via the copilot.",
+    "user_diego and user_elena were NEVER added to 'design': same case, the other way around.",
+    "user_elena is a member of 'backend' but never used the copilot (no rows in copilot_usage_logs): used to test the empty state of 'cumulative usage per user'.",
+    "The 'backend' messages about the search-index incident (msg5-msg7) are exactly the content bruno asks about in the second copilot_usage_logs case, which the copilot must refuse to answer."
+  ],
+
+  "messages": [
+    { "id": "e3b9b27f-9edd-48cc-aa87-5faaf674a205", "channel": "general", "user": "user_ana",   "content": "Welcome to the team's general channel" },
+    { "id": "f2255ed0-39af-4174-9f44-b6111cc06b2f", "channel": "general", "user": "user_carla", "content": "Reminder: sprint planning is tomorrow at 10am" },
+    { "id": "2a083b1c-d960-4cef-8df1-38a88635c30c", "channel": "general", "user": "user_diego", "content": "The production deploy went out fine overnight" },
+    { "id": "1a960334-362c-4edc-96df-9dc02f39a905", "channel": "general", "user": "user_elena", "content": "I'll validate the QA build before tomorrow's deploy" },
+
+    { "id": "adcfb5eb-1f8a-4b74-bc8a-c750843cf155", "channel": "backend", "user": "user_diego", "content": "The database migration broke the message search index, needs a look" },
+    { "id": "63ebbcc0-6374-42ab-8a7b-8ef2be5e6818", "channel": "backend", "user": "user_ana",   "content": "Already checked it: the problem was the tsvector GIN index, it's fixed now" },
+    { "id": "06b094e0-8ab1-40bb-b44d-0dbeae8537c9", "channel": "backend", "user": "user_elena", "content": "Ran the regression tests on the index fix, all green" },
+
+    { "id": "0adcb0f3-e0cf-40ee-a3e8-3907a8d5b1a4", "channel": "design", "user": "user_bruno", "content": "Uploaded the new dashboard mockup, check the Figma" },
+    { "id": "a0d5ad51-0d5d-4ce1-974e-0a5722c67a16", "channel": "design", "user": "user_carla", "content": "Love the new color palette, approved" },
+    { "id": "5a189eeb-7f8d-4db3-9ccf-a1611711f3e7", "channel": "design", "user": "user_bruno", "content": "Great, handing it off to dev next week" }
+  ],
+
+  "message_reads": [
+    { "user": "user_ana",   "channel": "general", "last_read_message": "msg:1a960334-362c-4edc-96df-9dc02f39a905" },
+    { "user": "user_bruno", "channel": "general", "last_read_message": "msg:f2255ed0-39af-4174-9f44-b6111cc06b2f" },
+    { "user": "user_diego", "channel": "backend", "last_read_message": "msg:06b094e0-8ab1-40bb-b44d-0dbeae8537c9" }
+  ],
+
+  "copilot_usage_logs": [
+    {
+      "user": "user_ana",
+      "channel": "backend",
+      "question": "What was the issue with the message index this week?",
+      "answer": "The tsvector GIN index broke after the migration; Ana fixed it, and Elena confirmed with regression tests that the fix works.",
+      "source_message_ids": [
+        "adcfb5eb-1f8a-4b74-bc8a-c750843cf155",
+        "63ebbcc0-6374-42ab-8a7b-8ef2be5e6818",
+        "06b094e0-8ab1-40bb-b44d-0dbeae8537c9"
+      ],
+      "prompt_tokens": 612,
+      "completion_tokens": 84,
+      "model": "gpt-4o-mini",
+      "latency_ms": 1450
+    },
+    {
+      "user": "user_bruno",
+      "channel": null,
+      "question": "What happened with the database migration?",
+      "answer": "I don't have enough information in the channels you have access to in order to answer that.",
+      "source_message_ids": [],
+      "prompt_tokens": 340,
+      "completion_tokens": 22,
+      "model": "gpt-4o-mini",
+      "latency_ms": 610
+    }
+  ]
+}
