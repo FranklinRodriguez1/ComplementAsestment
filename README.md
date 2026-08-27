@@ -101,8 +101,10 @@ Log in with any seeded user's email (e.g. `ana@rewire.dev`) and the demo passwor
 
 ## API
 
-No OpenAPI/Postman doc yet (tracked in `docs/`, still pending -- see `DECISIONS.md`). Until then,
-the routes themselves (all under `backend/src/presentation/routes/`):
+Full OpenAPI 3.0 spec at [`docs/swagger/openapi.yaml`](./docs/swagger/openapi.yaml) (validated with
+`redocly lint`, zero errors). Open [`docs/swagger/index.html`](./docs/swagger/index.html) in a
+browser for an interactive Swagger UI over it (any static file server works, e.g.
+`bunx --bun serve docs/swagger`). Quick reference, matching `backend/src/presentation/routes/`:
 
 | Method | Path                              | Auth | Notes                                    |
 |--------|------------------------------------|------|-------------------------------------------|
@@ -130,5 +132,6 @@ actually a member -- and listen for `"message:new"`.
 - [`ARCHITECTURE.md`](./ARCHITECTURE.md) -- architecture decisions and rationale.
 - [`DECISIONS.md`](./DECISIONS.md) -- what was cut from the MVP due to time, and why.
 - [`database/README.md`](./database/README.md) -- schema, normalization, RLS design.
-- `docs/der.pdf` -- entity-relationship diagram (pending).
-- `docs/swagger/` and `docs/postman/` -- API documentation (pending).
+- [`docs/der.pdf`](./docs/der.pdf) -- entity-relationship diagram, generated from the actual DDL.
+- [`docs/swagger/openapi.yaml`](./docs/swagger/openapi.yaml) -- OpenAPI 3.0 spec (+ `index.html` for Swagger UI).
+- `docs/postman/` -- still pending.

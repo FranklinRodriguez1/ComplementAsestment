@@ -1,0 +1,640 @@
+openapi: 3.0.3
+info:
+  title: Riwi Messenger API
+  description: >
+    REST + WebSocket API for the internal messaging platform. Matches the
+    implementation in backend/src/presentation/ exactly as of the backend
+    phase -- this file is meant as a working reference for API consumers
+    (the frontend integration pass, the AI-copilot phase, Postman/curl
+    exploration), not an aspirational spec written ahead of the code.
+
+    Every route below `/auth/*` requires a Bearer access token. `userId`
+    is always derived server-side from that token (see
+    backend/src/presentation/middlewares/auth.middleware.ts) -- no
+    endpoint accepts an actor id as input.
+
+    Channel/message visibility is enforced by PostgreSQL Row Level
+    Security, not by application code (see database/README.md): a
+    non-member of a channel gets an empty list or a 403/404, never another
+    user's data.
+  version: "0.1.0"
+  license:
+    name: UNLICENSED
+servers:
+  - url: http://localhost:4000
+    description: Local development
+
+tags:
+  - name: Auth
+  - name: Users
+  - name: Channels
+  - name: Messages
+  - name: System
+
+paths:
+  /health:
+    get:
+      tags: [System]
+      operationId: healthCheck
+      summary: Liveness check
+      security: []
+      responses:
+        "200":
+          description: Service is up
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: ok
+
+  /auth/register:
+    post:
+      tags: [Auth]
+      operationId: registerUser
+      summary: Create an account and start a session
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RegisterRequest"
+      responses:
+        "201":
+          description: Account created
+          headers:
+            Set-Cookie:
+              description: httpOnly refresh_token cookie
+              schema: { type: string }
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResponse"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "409":
+          description: An account with that email already exists
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+
+  /auth/login:
+    post:
+      tags: [Auth]
+      operationId: loginUser
+      summary: Start a session with an existing account
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginRequest"
+      responses:
+        "200":
+          description: Authenticated
+          headers:
+            Set-Cookie:
+              description: httpOnly refresh_token cookie
+              schema: { type: string }
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResponse"
+        "401":
+          description: Invalid email or password (deliberately generic -- never reveals which one)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+
+  /auth/refresh:
+    post:
+      tags: [Auth]
+      operationId: refreshSession
+      summary: Rotate the access/refresh token pair
+      description: >
+        Reads the refresh_token httpOnly cookie set by /auth/register or
+        /auth/login. Always issues a BRAND NEW pair -- the presented
+        refresh token is never reissued (rotation). There is no
+        server-side denylist of spent refresh tokens in this MVP; see
+        DECISIONS.md.
+      security: []
+      parameters:
+        - name: refresh_token
+          in: cookie
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: New token pair issued
+          headers:
+            Set-Cookie:
+              description: New httpOnly refresh_token cookie
+              schema: { type: string }
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResponse"
+        "401":
+          description: Missing, invalid, or expired refresh token
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+
+  /auth/logout:
+    post:
+      tags: [Auth]
+      operationId: logoutUser
+      summary: Clear the refresh token cookie
+      security: []
+      responses:
+        "204":
+          description: Logged out
+
+  /users/me:
+    get:
+      tags: [Users]
+      operationId: getMyProfile
+      summary: Get the authenticated user's own profile
+      responses:
+        "200":
+          description: The caller's profile
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  user: { $ref: "#/components/schemas/User" }
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+    patch:
+      tags: [Users]
+      operationId: updateMyProfile
+      summary: Update the authenticated user's own profile
+      description: >
+        Backed by rw_sp_edit_or_delete_user, whose actor_id/target_user_id
+        equality check is what actually enforces "self only" -- there is
+        no application code path that can target another user's profile.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateProfileRequest"
+      responses:
+        "200":
+          description: Updated profile
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  user: { $ref: "#/components/schemas/User" }
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /channels:
+    get:
+      tags: [Channels]
+      operationId: listMyChannels
+      summary: List the authenticated user's own channels
+      description: >
+        Backed by rw_v_user_conversations. RLS guarantees this can never
+        include a channel the caller isn't a member of -- there is no
+        `mine=true` filter to forget.
+      responses:
+        "200":
+          description: The caller's channels, each with a last-message preview and unread count
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  channels:
+                    type: array
+                    items: { $ref: "#/components/schemas/ChannelConversation" }
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+    post:
+      tags: [Channels]
+      operationId: createChannel
+      summary: Create a channel
+      description: Wraps rw_fn_create_channel -- the caller becomes the channel's first member atomically.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateChannelRequest"
+      responses:
+        "201":
+          description: Channel created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  channel: { $ref: "#/components/schemas/Channel" }
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "409":
+          description: A channel with that name already exists
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+
+  /channels/{channelId}/members:
+    post:
+      tags: [Channels]
+      operationId: addChannelMember
+      summary: Add a member to a channel
+      description: >
+        Wraps rw_fn_add_channel_member. Only an existing member of the
+        channel can invite someone else -- enforced inside the database
+        function itself, not just by RLS.
+      parameters:
+        - $ref: "#/components/parameters/ChannelId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AddChannelMemberRequest"
+      responses:
+        "201":
+          description: Membership created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  member: { $ref: "#/components/schemas/ChannelMember" }
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          description: The caller is not a member of this channel
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "409":
+          description: The target user is already a member
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+
+  /channels/{channelId}/messages:
+    get:
+      tags: [Messages]
+      operationId: listChannelMessages
+      summary: Channel message history (keyset pagination)
+      description: >
+        `cursor` is the `seq` of the oldest message already loaded by the
+        client -- never an OFFSET. Omit it for the first (most recent)
+        page. See database/queries/01_channel_history_keyset.sql.
+      parameters:
+        - $ref: "#/components/parameters/ChannelId"
+        - name: cursor
+          in: query
+          required: false
+          schema: { type: string, pattern: "^\\d+$" }
+          description: seq of the last message already received; omit for the first page
+        - name: limit
+          in: query
+          required: false
+          schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+      responses:
+        "200":
+          description: >
+            A page of messages, newest first. Empty (not an error) if the
+            caller isn't a member of channelId -- RLS hides the channel's
+            existence rather than raising 403/404.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/MessagePage" }
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+    post:
+      tags: [Messages]
+      operationId: sendMessage
+      summary: Send a message
+      description: >
+        Also broadcasts the created message over Socket.io to
+        `channel:<channelId>`'s room, after the write commits.
+      parameters:
+        - $ref: "#/components/parameters/ChannelId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SendMessageRequest"
+      responses:
+        "201":
+          description: Message created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message: { $ref: "#/components/schemas/Message" }
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          description: The caller is not a member of this channel
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+
+  /messages/search:
+    get:
+      tags: [Messages]
+      operationId: searchMessages
+      summary: Full-text search across the caller's own channels
+      description: >
+        ts_headline-highlighted (`<mark>...</mark>`). RLS restricts results
+        to channels the caller is a member of even when channelId is
+        omitted -- there is no way to search another channel's content by
+        guessing a term.
+      parameters:
+        - name: q
+          in: query
+          required: true
+          schema: { type: string, minLength: 1, maxLength: 200 }
+        - name: channelId
+          in: query
+          required: false
+          schema: { type: string, format: uuid }
+          description: Omit to search across every channel the caller belongs to
+        - name: limit
+          in: query
+          required: false
+          schema: { type: integer, minimum: 1, maximum: 50, default: 20 }
+      responses:
+        "200":
+          description: Ranked, highlighted matches
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  results:
+                    type: array
+                    items: { $ref: "#/components/schemas/MessageSearchHit" }
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /messages/{messageId}:
+    patch:
+      tags: [Messages]
+      operationId: editMessage
+      summary: Edit a message
+      description: Author-only, enforced by the rw_messages_update_author RLS policy, not application code.
+      parameters:
+        - $ref: "#/components/parameters/MessageId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EditMessageRequest"
+      responses:
+        "200":
+          description: Updated message
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message: { $ref: "#/components/schemas/Message" }
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          description: >
+            Not found -- covers "doesn't exist", "not visible to the
+            caller", and "belongs to someone else" identically on purpose
+            (RLS makes those indistinguishable rather than confirming a
+            foreign message's existence).
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+    delete:
+      tags: [Messages]
+      operationId: deleteMessage
+      summary: Soft-delete a message
+      description: Sets deleted_at; there is no physical DELETE path anywhere in this API.
+      parameters:
+        - $ref: "#/components/parameters/MessageId"
+      responses:
+        "204":
+          description: Deleted
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          description: Not found (see PATCH for why this is also returned for a foreign message)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Access token returned by /auth/register, /auth/login, or /auth/refresh.
+
+  parameters:
+    ChannelId:
+      name: channelId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    MessageId:
+      name: messageId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+
+  responses:
+    Unauthorized:
+      description: Missing/invalid/expired access token
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/ErrorResponse" }
+    ValidationError:
+      description: Request failed schema validation
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/ErrorResponse" }
+
+  schemas:
+    RegisterRequest:
+      type: object
+      required: [email, password, fullName, jobTitle]
+      properties:
+        email: { type: string, format: email }
+        password: { type: string, minLength: 8, maxLength: 72 }
+        fullName: { type: string, minLength: 1, maxLength: 200 }
+        jobTitle: { type: string, minLength: 1, maxLength: 200 }
+
+    LoginRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email: { type: string, format: email }
+        password: { type: string }
+
+    UpdateProfileRequest:
+      type: object
+      description: At least one of the two fields is required.
+      properties:
+        fullName: { type: string, minLength: 1, maxLength: 200 }
+        jobTitle: { type: string, minLength: 1, maxLength: 200 }
+
+    CreateChannelRequest:
+      type: object
+      required: [name]
+      properties:
+        name: { type: string, minLength: 1, maxLength: 80 }
+        description:
+          type: string
+          maxLength: 2000
+          nullable: true
+
+    AddChannelMemberRequest:
+      type: object
+      required: [userId]
+      properties:
+        userId: { type: string, format: uuid }
+
+    SendMessageRequest:
+      type: object
+      required: [content]
+      properties:
+        content: { type: string, minLength: 1, maxLength: 4000 }
+
+    EditMessageRequest:
+      type: object
+      required: [content]
+      properties:
+        content: { type: string, minLength: 1, maxLength: 4000 }
+
+    User:
+      type: object
+      description: Never includes passwordHash -- see domain/entities/user.entity.ts's toPublicUser.
+      properties:
+        id: { type: string, format: uuid }
+        email: { type: string, format: email }
+        fullName: { type: string }
+        jobTitle: { type: string }
+        createdAt: { type: string, format: date-time }
+
+    AuthResponse:
+      type: object
+      properties:
+        user: { $ref: "#/components/schemas/User" }
+        accessToken:
+          type: string
+          description: "Short-lived JWT. Send as `Authorization: Bearer <accessToken>`."
+
+    Channel:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        description: { type: string, nullable: true }
+        createdBy: { type: string, format: uuid }
+        createdAt: { type: string, format: date-time }
+
+    ChannelMember:
+      type: object
+      properties:
+        channelId: { type: string, format: uuid }
+        userId: { type: string, format: uuid }
+        addedBy: { type: string, format: uuid }
+        joinedAt: { type: string, format: date-time }
+
+    ChannelConversation:
+      type: object
+      description: One row of rw_v_user_conversations.
+      properties:
+        channelId: { type: string, format: uuid }
+        channelName: { type: string }
+        description: { type: string, nullable: true }
+        lastMessageId: { type: string, format: uuid, nullable: true }
+        lastMessagePreview: { type: string, nullable: true }
+        lastMessageAt: { type: string, format: date-time, nullable: true }
+        unreadCount: { type: integer }
+
+    Message:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        seq:
+          type: string
+          description: bigint, serialized as a string to avoid precision loss; the keyset pagination cursor.
+        channelId: { type: string, format: uuid }
+        userId:
+          type: string
+          format: uuid
+          nullable: true
+          description: Null if the author's account was later purged (see rw_messages.user_id's ON DELETE SET NULL).
+        authorName: { type: string, nullable: true }
+        content: { type: string }
+        editedAt: { type: string, format: date-time, nullable: true }
+        deletedAt: { type: string, format: date-time, nullable: true }
+        createdAt: { type: string, format: date-time }
+
+    MessagePage:
+      type: object
+      properties:
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/Message" }
+        nextCursor:
+          type: string
+          nullable: true
+          description: Pass as `cursor` to fetch the next (older) page; null when there is no older page.
+
+    MessageSearchHit:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        channelId: { type: string, format: uuid }
+        userId: { type: string, format: uuid, nullable: true }
+        highlightedContent:
+          type: string
+          description: Contains <mark>...</mark> around matched terms (ts_headline).
+        createdAt: { type: string, format: date-time }
+
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: object
+          properties:
+            code:
+              type: string
+              enum: [VALIDATION_ERROR, UNAUTHORIZED, FORBIDDEN, NOT_FOUND, CONFLICT, INTERNAL_ERROR]
+            message: { type: string }
+            correlationId:
+              type: string
+              description: Echoes the X-Correlation-Id request header, or a generated one. Also present on the matching response's X-Correlation-Id header.
+
+security:
+  - bearerAuth: []

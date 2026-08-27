@@ -171,5 +171,35 @@ faking the UI:
   the right row only worked by an unwritten "first name of `full_name`, lowercased" convention. Making
   it an explicit field trades a few extra lines for not silently breaking if two seeded users ever
   shared a first name.
-- **QA (2 tests against a real Postgres) and API documentation (Swagger/Postman) are not done yet** --
-  out of this phase's scope as discussed, tracked as the next things to build, not forgotten.
+- **QA (2 tests against a real Postgres) is not done yet** -- out of this phase's scope as
+  discussed, tracked as the next thing to build, not forgotten.
+
+## Phase 5 -- Documentation (Swagger + ER diagram)
+
+- **`docs/swagger/openapi.yaml` documents the API as implemented, not as originally planned.**
+  Written by re-reading each controller/route/use-case rather than from memory of the design --
+  request/response field names (e.g. `MessagePage.nextCursor`, `ChannelConversation.unreadCount`)
+  match the actual JSON responses exactly. Declared `openapi: 3.1.0` at first, then switched to
+  `3.0.3` after `redocly lint` rejected `nullable: true` (removed in 3.1's JSON-Schema-aligned
+  syntax, which wants `type: [string, "null"]` instead) -- 3.0.3 also has broader tool support
+  (Swagger UI, most codegen) than 3.1 does, so this wasn't a reluctant downgrade.
+- **`docs/swagger/index.html`** is a ~15-line static page pointing Swagger UI (loaded from a CDN) at
+  `./openapi.yaml`. Not built into the app or served by the backend -- it is meant to be opened via
+  any static file server (or the `file://` protocol) purely as documentation tooling, so it adds no
+  runtime dependency to `backend/` or `frontend/`.
+- **`docs/der.pdf` is generated, not hand-drawn**: a Mermaid `erDiagram` (entities/columns/PK-FK-UK
+  markers/cardinality transcribed directly from `database/ddl/*.sql`) rendered in a headless Chromium
+  page and exported with Playwright's `page.pdf()`. The alternative -- a GUI ER tool (dbdiagram.io,
+  pgAdmin's ERD) -- would need the schema re-entered by hand and re-exported by hand every time a
+  table changes; this way the diagram is one script re-run away from staying accurate, though it
+  isn't wired into any CI/pre-commit step to enforce that (out of scope for the time available).
+  `rw_v_user_conversations` is deliberately left off the diagram: it's a derived view, not a stored
+  table, so including it would misrepresent it as another first-class entity.
+- **The PDF page size is measured, not fixed** (`page.evaluate` reads `document.body.scrollHeight`
+  after the diagram renders, then that exact size is passed to `page.pdf({ width, height })`):
+  the first attempt used a fixed `format: "A3", landscape: true` and silently split the one diagram
+  across 4 PDF pages (one of them blank) because the content was taller than a single A3 page --
+  caught by reading the rendered PDF back before calling it done, not assumed to be correct because
+  the render command exited without error.
+- Both were generated with `playwright`, installed and removed again as a dev-only, one-off
+  rendering tool -- neither `frontend/` nor `backend/` gained a runtime dependency on it.
