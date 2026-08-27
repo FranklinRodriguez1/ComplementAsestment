@@ -17,9 +17,9 @@ export function CopilotFab({ onOpen }: { onOpen: () => void }) {
       type="button"
       onClick={onOpen}
       aria-label={t("openPanel")}
-      className="fixed bottom-6 right-6 z-30 flex h-16 w-16 items-center justify-center rounded-full bg-brand text-white shadow-lg transition-colors hover:bg-brand-hover"
+      className="fixed bottom-32 right-5 z-30 flex h-10 w-10 items-center justify-center rounded-full bg-brand text-white shadow-lg transition-colors hover:bg-brand-hover"
     >
-      <Sparkles className="h-icon-xl w-icon-xl" aria-hidden="true" />
+      <Sparkles className="h-icon-md w-icon-md" aria-hidden="true" />
     </button>
   );
 }

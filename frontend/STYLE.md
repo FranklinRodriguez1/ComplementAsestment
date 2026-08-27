@@ -136,9 +136,11 @@ Los íconos (`lucide-react`) usan una escala nombrada de 4 tamaños en vez de va
 | `icon-sm` | 14px | Badges, texto inline, metadatos pequeños |
 | `icon-md` | 16px | Botones y acciones por defecto |
 | `icon-lg` | 24px | Encabezados, íconos de sección |
-| `icon-xl` | 48px | Branding grande, estados vacíos, FAB del copiloto |
+| `icon-xl` | 48px | Branding grande, estados vacíos |
 
 Uso con `lucide-react`: `<Icon size={16} />` para `icon-md`, o vía clase Tailwind si el ícono se envuelve en un `<span>` con `w-icon-md h-icon-md`.
+
+Excepción: el ícono dentro del FAB del copiloto usa `icon-md` (16px) sobre un botón de 40px (`h-10 w-10`), no `icon-xl` — a tamaños mayores el ícono llenaba casi todo el círculo sin margen y el botón se sentía demasiado grande sobre la conversación. `icon-xl` queda para contextos sin un contenedor tan ajustado (branding del login, estados vacíos).
 
 ## Layout de la aplicación
 
@@ -174,6 +176,7 @@ Estructura de 3 zonas + panel deslizante del copiloto:
 
 ### Zona 3 — Panel del copiloto (desplegable, overlay derecho)
 - **Oculto por defecto.** No ocupa espacio del layout mientras está cerrado — solo se ve un botón flotante circular (FAB) en la esquina inferior derecha del área de conversación (icono tipo chispa/robot, fondo `brand`, sombra suave)
+- FAB de 40px (`h-10 w-10`, ícono `icon-md`), separado del borde inferior lo suficiente para no superponerse al input de texto de la Zona 2 (`bottom-32`, bien por encima del composer) — no ocupa el espacio del composer ni queda encima de él
 - Al hacer clic en el FAB, el panel se despliega desde la derecha (~360px de ancho, transición 200-250ms), con fondo `background-secondary` y su propio scroll
 - Al hacer clic de nuevo en el mismo botón (o en una X dentro del panel), se cierra y vuelve a quedar solo el FAB visible
 - Es completamente opcional: el usuario decide cuándo abrirlo, la conversación nunca pierde espacio por su causa
