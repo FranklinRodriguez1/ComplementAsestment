@@ -40,6 +40,9 @@ export class OpenAIProvider implements AIProvider {
           "Content-Type": "application/json",
         },
         body: JSON.stringify(body),
+        // A hung vendor must fail the request, not hold it (and its DB
+        // work) open indefinitely; 30s is generous for chat + embeddings.
+        signal: AbortSignal.timeout(30_000),
       });
     } catch {
       throw new ServiceUnavailableError("could not reach the AI provider");

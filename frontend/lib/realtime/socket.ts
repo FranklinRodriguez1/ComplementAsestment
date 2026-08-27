@@ -18,7 +18,13 @@ export function getSocket(): Socket | null {
     return null;
   }
   if (!socket) {
-    socket = io(SOCKET_URL, { auth: { token } });
+    // `auth` as a callback (not a plain object) so every RECONNECT
+    // handshake reads the token current at that moment -- with a static
+    // object, a reconnect after the 15-minute access-token expiry would
+    // present the stale token and be rejected.
+    socket = io(SOCKET_URL, {
+      auth: (cb) => cb({ token: getAccessToken() ?? "" }),
+    });
   }
   return socket;
 }

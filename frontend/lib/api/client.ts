@@ -1,3 +1,4 @@
+import { useAuthStore } from "@/lib/stores/auth-store";
 import type { UserProfile } from "@/lib/types";
 
 /**
@@ -58,10 +59,15 @@ export function tryRefreshSession(): Promise<UserProfile | null> {
       });
       if (!response.ok) {
         setAccessToken(null);
+        // Keeps the UI honest when a session dies MID-use (refresh cookie
+        // expired/revoked): flipping the store to guest makes RequireAuth
+        // bounce to /login instead of leaving dead queries on screen.
+        useAuthStore.getState().clearSession();
         return null;
       }
       const session = (await response.json()) as SessionResponse;
       setAccessToken(session.accessToken);
+      useAuthStore.getState().setSession(session.user);
       return session.user;
     } catch {
       setAccessToken(null);

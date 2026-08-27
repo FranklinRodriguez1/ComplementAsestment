@@ -14,3 +14,11 @@ export const pool = new Pool({
   user: process.env.DB_USER,
   password: process.env.DB_PASSWORD,
 });
+
+// An IDLE pooled connection can still error (db restart, network drop);
+// without a listener that's an unhandled 'error' event, which kills the
+// whole Node process. Active queries are unaffected -- their own promise
+// rejection already flows through each repository's error handling.
+pool.on("error", (error) => {
+  console.error("idle database connection error:", error.message);
+});
