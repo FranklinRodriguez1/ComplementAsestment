@@ -13,7 +13,7 @@ export function MobileBackLink() {
       href="/channels"
       className="flex items-center gap-1 border-b border-border px-4 py-2 text-sm text-foreground-secondary hover:text-foreground lg:hidden"
     >
-      <ChevronLeft className="h-4 w-4" aria-hidden="true" />
+      <ChevronLeft className="h-icon-md w-icon-md" aria-hidden="true" />
       {t("back")}
     </Link>
   );

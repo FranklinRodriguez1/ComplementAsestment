@@ -1,5 +1,6 @@
 "use client";
 
+import { MessageSquare } from "lucide-react";
 import { useEffect, useLayoutEffect, useRef } from "react";
 import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
@@ -77,7 +78,7 @@ export function MessageList({ channelId }: { channelId: ChannelId }) {
   }
 
   if (messages.length === 0) {
-    return <EmptyState title={t("empty")} />;
+    return <EmptyState title={t("empty")} icon={MessageSquare} />;
   }
 
   return (

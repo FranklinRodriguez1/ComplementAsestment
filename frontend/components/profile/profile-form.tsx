@@ -88,7 +88,7 @@ export function ProfileForm() {
             className="rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-brand"
           />
           {errors.fullName ? (
-            <p className="text-xs text-status-error">{errors.fullName.message}</p>
+            <p className="text-xs text-status-error-text">{errors.fullName.message}</p>
           ) : null}
         </div>
 
@@ -103,7 +103,7 @@ export function ProfileForm() {
             className="rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-brand"
           />
           {errors.jobTitle ? (
-            <p className="text-xs text-status-error">{errors.jobTitle.message}</p>
+            <p className="text-xs text-status-error-text">{errors.jobTitle.message}</p>
           ) : null}
         </div>
 
@@ -125,10 +125,10 @@ export function ProfileForm() {
             {updateProfile.isPending ? t("saving") : t("save")}
           </Button>
           {justSaved && !updateProfile.isPending ? (
-            <span className="text-sm text-status-success">{t("saveSuccess")}</span>
+            <span className="text-sm text-status-success-text">{t("saveSuccess")}</span>
           ) : null}
           {updateProfile.isError ? (
-            <span className="text-sm text-status-error">{t("saveError")}</span>
+            <span className="text-sm text-status-error-text">{t("saveError")}</span>
           ) : null}
         </div>
       </form>

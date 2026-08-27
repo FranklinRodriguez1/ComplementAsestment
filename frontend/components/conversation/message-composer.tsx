@@ -36,7 +36,7 @@ export function MessageComposer({ channel }: { channel: Channel }) {
         className="flex-1 rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-foreground-secondary focus:outline-none focus:ring-2 focus:ring-brand"
       />
       <Button type="submit" disabled={!value.trim()} aria-label={t("send")}>
-        <Send className="h-4 w-4" aria-hidden="true" />
+        <Send className="h-icon-md w-icon-md" aria-hidden="true" />
       </Button>
     </form>
   );

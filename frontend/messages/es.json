@@ -15,7 +15,8 @@
     "channels": "Canales",
     "profile": "Perfil",
     "conversation": "Conversación",
-    "copilot": "Copiloto"
+    "copilot": "Copiloto",
+    "openMenu": "Abrir menú"
   },
   "sidebar": {
     "title": "Canales",

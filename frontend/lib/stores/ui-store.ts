@@ -1,7 +1,6 @@
 import { create } from "zustand";
 
 export type Theme = "light" | "dark";
-export type MobilePane = "conversation" | "copilot";
 
 /** Must match the inline anti-FOUC script in app/[locale]/layout.tsx. */
 export const THEME_STORAGE_KEY = "riwi-theme";
@@ -9,9 +8,14 @@ export const THEME_STORAGE_KEY = "riwi-theme";
 interface UiState {
   theme: Theme;
   toggleTheme: () => void;
-  /** Below the lg breakpoint, conversation and copilot share one pane. */
-  mobilePane: MobilePane;
-  setMobilePane: (pane: MobilePane) => void;
+  /** Mobile-only drawer for the channel sidebar (STYLE.md layout). */
+  sidebarOpen: boolean;
+  toggleSidebar: () => void;
+  closeSidebar: () => void;
+  /** FAB-triggered overlay panel, all breakpoints (STYLE.md layout). */
+  copilotOpen: boolean;
+  toggleCopilot: () => void;
+  closeCopilot: () => void;
 }
 
 function getInitialTheme(): Theme {
@@ -33,6 +37,10 @@ export const useUiStore = create<UiState>((set, get) => ({
     applyTheme(next);
     set({ theme: next });
   },
-  mobilePane: "conversation",
-  setMobilePane: (pane) => set({ mobilePane: pane }),
+  sidebarOpen: false,
+  toggleSidebar: () => set((s) => ({ sidebarOpen: !s.sidebarOpen })),
+  closeSidebar: () => set({ sidebarOpen: false }),
+  copilotOpen: false,
+  toggleCopilot: () => set((s) => ({ copilotOpen: !s.copilotOpen })),
+  closeCopilot: () => set({ copilotOpen: false }),
 }));

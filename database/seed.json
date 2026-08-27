@@ -1,7 +1,7 @@
 {
   "_meta": {
     "description": "Sample data for bd_franklin_rodriguez_thompson. Designed to demonstrate the non-negotiable requirement (per-channel isolation) live, without having to create data by hand.",
-    "demo_password": "Demo1234",
+    "demo_password": "Demo1234!",
     "demo_password_note": "Every user in this seed shares this DEMO password. The password_hash values below are real bcrypt hashes (cost 12) of that value -- the plaintext password is never stored, not even in test data.",
     "loading_order": "users -> channels -> channel_members -> messages -> message_reads -> copilot_usage_logs (respects the FKs).",
     "reference_convention": "channel_members/messages/message_reads/copilot_usage_logs reference users by their explicit `key` below (e.g. \"user_ana\"), and channels by their `name` (e.g. \"general\") -- both resolved by backend/scripts/seed.ts before inserting."

@@ -1,5 +1,6 @@
 "use client";
 
+import { MessageSquare } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import { EmptyState, ErrorState, LoadingState } from "@/components/ui/state-views";
@@ -33,7 +34,13 @@ export function ChannelPage({ channelId }: { channelId: ChannelId }) {
     // Not found in the (mock) membership-scoped channel list -- the same
     // outcome a non-member gets from the real, RLS-backed API later: no
     // distinguishable error, just nothing to show.
-    return <EmptyState title={t("selectChannelTitle")} description={t("selectChannelDescription")} />;
+    return (
+      <EmptyState
+        title={t("selectChannelTitle")}
+        description={t("selectChannelDescription")}
+        icon={MessageSquare}
+      />
+    );
   }
 
   return (

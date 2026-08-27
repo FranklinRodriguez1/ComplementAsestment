@@ -1,6 +1,6 @@
 "use client";
 
-import { Send, Sparkles } from "lucide-react";
+import { Send, Sparkles, X } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { type FormEvent, useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -25,7 +25,7 @@ interface Turn {
  * entry: it isn't "fetched" from anywhere, it's this session's own
  * questions (see lib/query/copilot.ts).
  */
-export function CopilotPanel({ channel }: { channel: Channel }) {
+export function CopilotPanel({ channel, onClose }: { channel: Channel; onClose: () => void }) {
   const t = useTranslations("copilot");
   const [value, setValue] = useState("");
   const [turns, setTurns] = useState<Turn[]>([]);
@@ -73,16 +73,24 @@ export function CopilotPanel({ channel }: { channel: Channel }) {
   return (
     <div className="flex h-full flex-col">
       <div className="flex items-start gap-2 border-b border-border px-4 py-3">
-        <Sparkles className="mt-0.5 h-4 w-4 shrink-0 text-brand" aria-hidden="true" />
-        <div>
+        <Sparkles className="mt-0.5 h-icon-md w-icon-md shrink-0 text-brand-text" aria-hidden="true" />
+        <div className="min-w-0 flex-1">
           <h2 className="text-sm font-semibold text-foreground">{t("title")}</h2>
           <p className="text-xs text-foreground-secondary">{t("description")}</p>
         </div>
+        <button
+          type="button"
+          onClick={onClose}
+          aria-label={t("closePanel")}
+          className="-mt-1 -mr-1 inline-flex h-icon-xl w-icon-xl shrink-0 items-center justify-center rounded-lg text-foreground-secondary transition-colors hover:bg-background hover:text-foreground"
+        >
+          <X className="h-icon-md w-icon-md" aria-hidden="true" />
+        </button>
       </div>
 
       <div className="flex-1 overflow-y-auto p-4">
         {turns.length === 0 ? (
-          <EmptyState title={t("empty")} />
+          <EmptyState title={t("empty")} icon={Sparkles} />
         ) : (
           <div className="flex flex-col gap-4">
             {turns.map((turn) => (
@@ -104,7 +112,7 @@ export function CopilotPanel({ channel }: { channel: Channel }) {
           className="flex-1 rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-foreground-secondary focus:outline-none focus:ring-2 focus:ring-brand"
         />
         <Button type="submit" disabled={!value.trim()} aria-label={t("ask")}>
-          <Send className="h-4 w-4" aria-hidden="true" />
+          <Send className="h-icon-md w-icon-md" aria-hidden="true" />
         </Button>
       </form>
     </div>

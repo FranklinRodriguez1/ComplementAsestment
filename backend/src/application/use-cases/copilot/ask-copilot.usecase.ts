@@ -91,11 +91,23 @@ export class AskCopilotUseCase {
       user: buildUserPrompt(question, context),
     });
 
+    // The spec requires every answer to carry citations. A model can still
+    // decide -- despite weak context slipping past the similarity cutoff --
+    // that none of it actually answers the question (rule 3 of the system
+    // prompt), and reply in prose without citing anything. An uncited
+    // "answer" is, functionally, a refusal: normalize it to the same
+    // canonical refusal the no-context path returns, so the client never
+    // has to special-case "answered but cites nothing", and never shows
+    // sources the answer didn't actually use.
+    const citedIndexes = citedSourceIndexes(completion.content, context.length);
+    const isRefusal = citedIndexes.size === 0;
+    const citedSources = context.filter((_, position) => citedIndexes.has(position + 1)).map(toSource);
+
     await this.copilotRepository.logUsage(actorId, {
       channelId: channelId ?? null,
       question,
-      answer: completion.content,
-      sourceMessageIds: context.map((item) => item.messageId),
+      answer: isRefusal ? null : completion.content,
+      sourceMessageIds: citedSources.map((source) => source.messageId),
       promptTokens: completion.promptTokens,
       completionTokens: completion.completionTokens,
       model,
@@ -103,12 +115,24 @@ export class AskCopilotUseCase {
     });
 
     return {
-      answer: completion.content,
-      refused: false,
-      sources: context.map(toSource),
+      answer: isRefusal ? REFUSAL_ANSWER : completion.content,
+      refused: isRefusal,
+      sources: citedSources,
       model,
     };
   }
+}
+
+/** Which of the context's [1]-based citation numbers the answer actually references. */
+function citedSourceIndexes(answer: string, contextSize: number): Set<number> {
+  const indexes = new Set<number>();
+  for (const match of answer.matchAll(/\[(\d+)\]/g)) {
+    const index = Number(match[1]);
+    if (index >= 1 && index <= contextSize) {
+      indexes.add(index);
+    }
+  }
+  return indexes;
 }
 
 /**
