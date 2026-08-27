@@ -1,7 +1,6 @@
 "use client";
 
 import { Hash } from "lucide-react";
-import { useTranslations } from "next-intl";
 import { CopilotPanel } from "@/components/copilot/copilot-panel";
 import { MobilePaneSwitcher } from "@/components/layout/mobile-pane-switcher";
 import { useUiStore } from "@/lib/stores/ui-store";
@@ -16,7 +15,6 @@ import { MessageList } from "./message-list";
  * both render side by side.
  */
 export function ChannelDetailView({ channel }: { channel: Channel }) {
-  const t = useTranslations("conversation");
   const mobilePane = useUiStore((s) => s.mobilePane);
 
   return (
@@ -34,9 +32,6 @@ export function ChannelDetailView({ channel }: { channel: Channel }) {
               <p className="text-xs text-foreground-secondary">{channel.description}</p>
             ) : null}
           </div>
-          <span className="ml-auto text-xs text-foreground-secondary">
-            {t("membersCount", { count: channel.memberCount })}
-          </span>
         </div>
         <MessageList channelId={channel.id} />
         <MessageComposer channel={channel} />

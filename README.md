@@ -91,13 +91,11 @@ bun install
 bun run dev   # http://localhost:3000 -> redirects to /en/channels (or /es/channels)
 ```
 
-Log in with any seeded user's email (e.g. `ana@rewire.dev`) and the demo password from
-`database/seed.json`'s `_meta`.
-
-> The frontend's data layer (`frontend/lib/mock/`) was built ahead of the backend API and still
-> simulates it as of this writing -- wiring it up to the real endpoints above is the next step, not
-> done yet. See the Phase 3 section of [`DECISIONS.md`](./DECISIONS.md) for what the mock does and
-> doesn't prove about security in the meantime.
+Open http://localhost:3000 and log in with any seeded user's email (e.g. `ana@rewire.dev`) and the
+demo password from `database/seed.json`'s `_meta`. The frontend talks to the real backend
+(`frontend/lib/api/`): JWT login with silent refresh via httpOnly cookie, live messages over
+Socket.io, and the copilot panel calling `POST /copilot/ask`. The original mock data layer it was
+built against has been deleted -- see Phase 6 of [`DECISIONS.md`](./DECISIONS.md).
 
 ## API
 

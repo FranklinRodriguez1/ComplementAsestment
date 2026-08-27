@@ -203,3 +203,40 @@ faking the UI:
   the render command exited without error.
 - Both were generated with `playwright`, installed and removed again as a dev-only, one-off
   rendering tool -- neither `frontend/` nor `backend/` gained a runtime dependency on it.
+
+## Phase 6 -- AI copilot, QA tests, frontend-backend integration
+
+- **The copilot's permission filter is SQL twice, prompt zero times**: retrieval goes through
+  `rw_fn_copilot_context` (membership JOIN) executed inside the actor's RLS transaction. The system
+  prompt (`backend/prompts/v1.md`, versioned append-only) handles honesty and injection resistance
+  -- rules 3 and 4 -- but is never what stands between a user and another channel's messages.
+- **Refusals don't call the chat model.** When retrieval (after the similarity cutoff) comes back
+  empty, the use case returns a fixed refusal and logs it with zero completion tokens. Cheaper, and
+  a deterministic "no context -> no answer" path that can't be prompt-injected into answering.
+- **Embeddings are written by the backend, not a DB trigger** (an OpenAI/Gemini call can't run
+  inside a transaction): fire-and-forget after send/edit, so message latency never depends on the
+  AI vendor. The trigger's job is consistency the other way -- it NULLs the embedding when content
+  changes, and `bun run ai:backfill` sweeps anything left unembedded.
+- **The "OpenAI" provider turned out to be Gemini on delivery day**: the available key was from
+  Google AI Studio, so `OPENAI_BASE_URL` now picks the vendor (Gemini exposes an OpenAI-compatible
+  endpoint) and `gemini-embedding-001` is asked for 1536 dimensions to match the column. This is
+  the AIProvider swappability requirement exercised for real, not hypothetically. The similarity
+  cutoff moved to config (`COPILOT_MIN_SIMILARITY`) because it's a property of the embedding model:
+  measured on gemini-embedding-001, relevant hits score >= ~0.55 and unrelated ones ~0.43, so 0.5;
+  OpenAI's text-embedding-3 runs much lower (~0.2 territory).
+- **QA tests talk to the real Postgres as the real `rw_app` role** (`backend/tests/`, `bun test`):
+  fixtures are created by the admin role (like seed.ts) and every assertion runs through the same
+  `BEGIN + set_config('app.current_user_id')` transaction shape as production code. Found one
+  pleasant surprise: physical DELETE of messages fails on the missing GRANT (42501) before RLS is
+  even consulted -- denial at two layers, and the test asserts that.
+- **Frontend integration was a designed-for swap**: `lib/api/api.ts` reuses the exact signatures of
+  the deleted `lib/mock/api.ts`, so the TanStack Query hooks changed one import line each. The
+  access token lives in module memory (never localStorage); reloads recover the session through the
+  httpOnly refresh cookie (`tryRefreshSession`, deduplicated so N concurrent 401s trigger one
+  rotation). `RequireAuth` gates the `(app)` route group client-side for UX only -- the API and RLS
+  are the actual enforcement.
+- **Realtime inserts into the TanStack Query cache instead of refetching**: `message:new` broadcasts
+  are deduplicated by message id against the sender's own optimistic bubble (the socket event and
+  the REST confirmation race each other; whichever lands second finds the id and no-ops). Verified
+  end to end: sender REST -> member socket delivery -> background embedding, and a non-member's
+  `channel:join` acked `false` by the server's RLS-backed membership check.

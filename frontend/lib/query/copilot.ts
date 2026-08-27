@@ -1,7 +1,7 @@
 "use client";
 
 import { useMutation } from "@tanstack/react-query";
-import { askCopilot } from "@/lib/mock/api";
+import { askCopilot } from "@/lib/api/api";
 import type { ChannelId } from "@/lib/types";
 
 /**

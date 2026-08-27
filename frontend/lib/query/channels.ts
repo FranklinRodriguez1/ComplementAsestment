@@ -1,7 +1,7 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { fetchChannels } from "@/lib/mock/api";
+import { fetchChannels } from "@/lib/api/api";
 import type { ChannelId } from "@/lib/types";
 import { queryKeys } from "./keys";
 

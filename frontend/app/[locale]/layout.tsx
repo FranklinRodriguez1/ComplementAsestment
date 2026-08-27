@@ -3,7 +3,6 @@ import { Geist, Geist_Mono } from "next/font/google";
 import { hasLocale, NextIntlClientProvider } from "next-intl";
 import { getMessages, setRequestLocale } from "next-intl/server";
 import { notFound } from "next/navigation";
-import { AppShell } from "@/components/layout/app-shell";
 import { routing } from "@/i18n/routing";
 import { QueryProvider } from "@/lib/query/query-provider";
 import { THEME_STORAGE_KEY } from "@/lib/stores/ui-store";
@@ -62,9 +61,7 @@ export default async function LocaleLayout({
       </head>
       <body className="h-full">
         <NextIntlClientProvider messages={messages}>
-          <QueryProvider>
-            <AppShell>{children}</AppShell>
-          </QueryProvider>
+          <QueryProvider>{children}</QueryProvider>
         </NextIntlClientProvider>
       </body>
     </html>

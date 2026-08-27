@@ -2,8 +2,8 @@
 
 import { useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import type { InfiniteData } from "@tanstack/react-query";
-import { fetchMessages, sendMessage } from "@/lib/mock/api";
-import { CURRENT_USER_ID, USERS } from "@/lib/mock/fixtures";
+import { fetchMessages, sendMessage } from "@/lib/api/api";
+import { useAuthStore } from "@/lib/stores/auth-store";
 import { queryKeys } from "./keys";
 import type { ChannelId, Message, MessagePage } from "@/lib/types";
 
@@ -44,6 +44,9 @@ interface SendMessageVars {
  */
 export function useSendMessage(channelId: ChannelId) {
   const queryClient = useQueryClient();
+  // The session user authors the optimistic bubble; RequireAuth guarantees
+  // it is set before any composer can render.
+  const currentUser = useAuthStore((s) => s.user);
   const key = queryKeys.messages(channelId);
 
   return useMutation({
@@ -56,8 +59,8 @@ export function useSendMessage(channelId: ChannelId) {
       const optimisticMessage: Message = {
         id: tempId,
         channelId,
-        authorId: CURRENT_USER_ID,
-        authorName: USERS[CURRENT_USER_ID].fullName,
+        authorId: currentUser?.id ?? "",
+        authorName: currentUser?.fullName ?? "",
         content: vars.content,
         createdAt: new Date().toISOString(),
         status: "pending",
@@ -83,12 +86,18 @@ export function useSendMessage(channelId: ChannelId) {
       queryClient.setQueryData<MessagesData>(key, (data) => {
         if (!data || !context) return data;
         const [firstPage, ...rest] = data.pages;
+        // The socket broadcast of our own message can land before this
+        // response does; if it already inserted the confirmed message,
+        // just drop the pending bubble instead of duplicating it.
+        const alreadyInserted = firstPage.items.some((m) => m.id === serverMessage.id);
         return {
           ...data,
           pages: [
             {
               ...firstPage,
-              items: firstPage.items.map((m) => (m.id === context.tempId ? serverMessage : m)),
+              items: alreadyInserted
+                ? firstPage.items.filter((m) => m.id !== context.tempId)
+                : firstPage.items.map((m) => (m.id === context.tempId ? serverMessage : m)),
             },
             ...rest,
           ],

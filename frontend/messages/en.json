@@ -38,8 +38,7 @@
     "statusPending": "Sending…",
     "statusSent": "Sent",
     "statusFailed": "Failed to send",
-    "retrySend": "Retry",
-    "membersCount": "{count, plural, one {# member} other {# members}}"
+    "retrySend": "Retry"
   },
   "copilot": {
     "title": "Copilot",
@@ -78,5 +77,19 @@
     "back": "Back",
     "loading": "Loading…",
     "retry": "Retry"
+  },
+  "auth": {
+    "subtitle": "Sign in to your team workspace",
+    "emailLabel": "Email",
+    "passwordLabel": "Password",
+    "signIn": "Sign in",
+    "signingIn": "Signing in...",
+    "signOut": "Sign out",
+    "invalidCredentials": "Invalid email or password.",
+    "networkError": "Could not sign in. Check your connection and try again.",
+    "validation": {
+      "emailInvalid": "Enter a valid email address",
+      "passwordRequired": "Enter your password"
+    }
   }
 }

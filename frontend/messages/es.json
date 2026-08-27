@@ -38,8 +38,7 @@
     "statusPending": "Enviando…",
     "statusSent": "Enviado",
     "statusFailed": "No se pudo enviar",
-    "retrySend": "Reintentar",
-    "membersCount": "{count, plural, one {# miembro} other {# miembros}}"
+    "retrySend": "Reintentar"
   },
   "copilot": {
     "title": "Copiloto",
@@ -78,5 +77,19 @@
     "back": "Volver",
     "loading": "Cargando…",
     "retry": "Reintentar"
+  },
+  "auth": {
+    "subtitle": "Inicia sesión en el espacio de tu equipo",
+    "emailLabel": "Correo electrónico",
+    "passwordLabel": "Contraseña",
+    "signIn": "Iniciar sesión",
+    "signingIn": "Iniciando sesión...",
+    "signOut": "Cerrar sesión",
+    "invalidCredentials": "Correo o contraseña incorrectos.",
+    "networkError": "No se pudo iniciar sesión. Revisa tu conexión e inténtalo de nuevo.",
+    "validation": {
+      "emailInvalid": "Ingresa un correo válido",
+      "passwordRequired": "Ingresa tu contraseña"
+    }
   }
 }

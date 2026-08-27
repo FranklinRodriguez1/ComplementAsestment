@@ -13,7 +13,9 @@ export interface Channel {
   id: ChannelId;
   name: string;
   description: string | null;
-  memberCount: number;
+  /** From rw_v_user_conversations: the actor's own view of the channel. */
+  lastMessagePreview: string | null;
+  unreadCount: number;
 }
 
 export type MessageStatus = "pending" | "sent" | "failed";

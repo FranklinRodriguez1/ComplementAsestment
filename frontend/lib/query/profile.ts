@@ -1,7 +1,7 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { fetchProfile, updateProfile } from "@/lib/mock/api";
+import { fetchProfile, updateProfile } from "@/lib/api/api";
 import { queryKeys } from "./keys";
 
 export function useProfile() {

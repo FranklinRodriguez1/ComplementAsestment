@@ -4,15 +4,19 @@ import { useEffect, useLayoutEffect, useRef } from "react";
 import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import { EmptyState, ErrorState, LoadingState } from "@/components/ui/state-views";
-import { CURRENT_USER_ID } from "@/lib/mock/fixtures";
 import { flattenMessagePages, useMessages } from "@/lib/query/messages";
+import { useChannelRealtime } from "@/lib/realtime/use-channel-realtime";
+import { useAuthStore } from "@/lib/stores/auth-store";
 import type { ChannelId } from "@/lib/types";
 import { MessageBubble } from "./message-bubble";
 
 export function MessageList({ channelId }: { channelId: ChannelId }) {
   const t = useTranslations("conversation");
+  const currentUserId = useAuthStore((s) => s.user?.id);
   const { data, isPending, isError, refetch, fetchNextPage, hasNextPage, isFetchingNextPage } =
     useMessages(channelId);
+  // Live socket subscription for this channel (join room + cache inserts).
+  useChannelRealtime(channelId);
 
   const containerRef = useRef<HTMLDivElement>(null);
   // Height captured right before fetching an older page, so the effect
@@ -83,7 +87,7 @@ export function MessageList({ channelId }: { channelId: ChannelId }) {
       ) : null}
       <div className="flex flex-col gap-4">
         {messages.map((message) => (
-          <MessageBubble key={message.id} message={message} isOwn={message.authorId === CURRENT_USER_ID} />
+          <MessageBubble key={message.id} message={message} isOwn={message.authorId === currentUserId} />
         ))}
       </div>
     </div>
