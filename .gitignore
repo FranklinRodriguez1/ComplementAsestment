@@ -2,3 +2,6 @@
 .env.local
 *.log
 .DS_Store
+
+# Personal study/defense notes -- never pushed
+SUSTENTACION.md
