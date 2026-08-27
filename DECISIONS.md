@@ -113,3 +113,63 @@ faking the UI:
   plain-string form that works in the client hook -- found by running `tsc --noEmit`, not by
   guessing; fixed by reading the current locale with `getLocale()` in the root page before
   redirecting to `/channels`.
+
+## Phase 4 -- Backend
+
+- **`tsc` path aliases don't survive compilation.** The original plan was `tsc` to `dist/` +
+  `node dist/index.js` in production, mirroring the frontend. `tsc`'s `paths` option is
+  type-checking-only -- it does not rewrite `@domain/*`-style imports to relative paths in emitted
+  JS, so `node dist/index.js` would have crashed immediately on the first `@domain` import. Fixed by
+  dropping the compile step entirely: `bun run start` now runs `src/index.ts` directly (Bun resolves
+  tsconfig `paths` at runtime, same as `tsx` does in dev), and `tsconfig.json`'s
+  `moduleResolution` moved from `NodeNext` (which additionally demands explicit `.js` extensions on
+  every relative import, not just aliases) to `bundler` -- matching the frontend's tsconfig, and
+  correct for a codebase that's never run through a strict Node ESM loader in the first place.
+  `backend/Dockerfile` lost its build stage as a result: no `dist/` artifact to build or copy.
+- **No DI container.** Every repository, service, use case, and controller is `new`-ed up by hand in
+  `src/index.ts`, the single composition root -- about 25 lines of straightforward wiring. A
+  container (Awilix, tsyringe) would add a dependency and a learning curve to solve a problem this
+  size doesn't have.
+- **Stateless refresh token rotation, no server-side revocation.** Every `/auth/refresh` call issues
+  a brand new access+refresh pair, but the old refresh token isn't tracked or blacklisted -- it just
+  stays cryptographically valid until it expires on its own. A production system would add a
+  `refresh_tokens` table (hash, `jti`, revoked/reuse-detected flags) to actually invalidate a
+  rotated-out token and detect theft; that's a real security gap, cut here for time and flagged
+  explicitly rather than silently shipped as if it were complete.
+- **RLS violations surface as generic errors, mapped by Postgres error code, not by parsing
+  messages.** `rw_fn_add_channel_member`'s explicit `RAISE EXCEPTION ... USING ERRCODE='42501'` and a
+  bare RLS `WITH CHECK` failure on `rw_messages` both happen to raise SQLSTATE 42501
+  (insufficient_privilege) -- both get mapped to a 403 in their respective use cases
+  (`AddChannelMemberUseCase`, `SendMessageUseCase`) by checking `error.code`, never by
+  string-matching `error.message` (which Postgres doesn't guarantee the wording of across versions).
+- **`RealtimePublisher` is a domain-level port** (`domain/services/realtime-publisher.ts`), not an
+  infrastructure-only concern living solely next to the Socket.io code: `MessagesController` depends
+  on the interface, `infrastructure/sockets/realtime-publisher.ts` provides the only implementation.
+  Same pattern as `PasswordHasher`/`TokenService` -- kept consistent rather than making an exception
+  for the one port that happens to be about real-time transport.
+- **A WebSocket join is gated by the exact same RLS-protected lookup the REST API uses**
+  (`ChannelRepository.findById`, called from `socket-server.ts`'s `channel:join` handler) instead of
+  a separate permission check: a socket can only join `channel:<id>`'s room -- and therefore only
+  receive that channel's `message:new` broadcasts -- if that same actor could also successfully
+  `GET /channels/:id`. One source of truth for "can this user see this channel", not two
+  implementations that could drift apart.
+- **`backend/scripts/migrate.sh` stays a thin shell wrapper around the exact `docker run … psql …`
+  command already validated in `database/README.md`, not a JS reimplementation.**
+  `database/migrations/0001_init.sql` relies on psql meta-commands (`\ir`, `\if`, `\gset`) that
+  `node-pg` (or any plain Postgres client library) cannot execute -- only the real `psql` binary
+  understands them.
+- **`backend/scripts/seed.ts`, in contrast, IS a real TypeScript script** (not a wrapper): loading
+  `database/seed.json` is plain `INSERT`s with no psql-specific syntax involved, so there was no
+  reason not to write it directly against `pg`. It connects as `DB_ADMIN_USER` (the migration
+  superuser), not `rw_app`: seeding data for five different "users" in one script run isn't
+  something `app.current_user_id`-scoped RLS is meant to support, and table owners are exempt from
+  RLS anyway (see `database/README.md`). It short-circuits if `rw_users` already has rows rather
+  than trying to be idempotent against partial reseeds -- it's meant to run once, against a freshly
+  migrated database.
+- **`seed.json` gained an explicit `"key"` field per user** (e.g. `"user_ana"`) while writing the
+  loader: the original file referenced users this way already, but the mapping from `"user_ana"` to
+  the right row only worked by an unwritten "first name of `full_name`, lowercased" convention. Making
+  it an explicit field trades a few extra lines for not silently breaking if two seeded users ever
+  shared a first name.
+- **QA (2 tests against a real Postgres) and API documentation (Swagger/Postman) are not done yet** --
+  out of this phase's scope as discussed, tracked as the next things to build, not forgotten.

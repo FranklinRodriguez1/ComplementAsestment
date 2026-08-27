@@ -25,6 +25,7 @@ lives in SQL (Row Level Security), not in the application layer.
 ├── .env.example
 ├── frontend/        Next.js (App Router, TypeScript, Tailwind)
 ├── backend/          Node.js/Express, TypeScript, Clean Architecture
+│   ├── scripts/       db:migrate / db:seed
 │   └── src/
 │       ├── domain/          pure entities and interfaces (no Express/pg)
 │       ├── application/     use cases
@@ -59,29 +60,27 @@ Services:
 
 ## Migrations and seed data
 
-Validated commands (see [`database/README.md`](./database/README.md) for the full rationale):
-
 ```bash
 # 1. Start the database
 docker compose up -d db
 
 # 2. Apply the schema (extensions, tables, functions, RLS policies)
-docker run --rm --network frank_default \
-  -e PGPASSWORD="$DB_ADMIN_PASSWORD" \
-  -v "$(pwd)/database:/database" \
-  pgvector/pgvector:pg16 \
-  psql -h db -U "$DB_ADMIN_USER" -d "$DB_NAME" \
-  -v ON_ERROR_STOP=1 -v app_password="$DB_PASSWORD" \
-  -f /database/migrations/0001_init.sql
+cd backend && bun run db:migrate
+
+# 3. Load database/seed.json (5 users, 3 channels, 10 messages -- see its _meta for the demo password)
+bun run db:seed
 ```
 
-> A `bun run db:migrate` / `bun run db:seed` wrapper around this, plus the `database/seed.json`
-> loader, ships in the backend phase.
+`db:migrate` is a thin wrapper around the exact `psql` command validated in
+[`database/README.md`](./database/README.md) (it needs the real `psql` binary for the `\ir`/`\if`
+meta-commands the migration file uses, which is why it shells out to a `docker run` rather than
+using a plain Postgres client library). `db:seed` is a real TypeScript script
+(`backend/scripts/seed.ts`) and only ever runs once against a freshly migrated, empty database.
 
 ## Local development (without Docker)
 
 ```bash
-# Backend
+# Backend (after migrate + seed above)
 cd backend
 bun install
 bun run dev   # http://localhost:4000/health
@@ -92,12 +91,39 @@ bun install
 bun run dev   # http://localhost:3000 -> redirects to /en/channels (or /es/channels)
 ```
 
-> The frontend was built ahead of the backend API, at the user's request: its data layer
-> (`frontend/lib/mock/`) currently simulates the backend (same shapes as the real endpoints,
-> artificial latency, a simulated send-failure rate) using the same users/channels/messages as
-> `database/seed.json`. Log in isn't wired up yet -- the mock session is always "Ana Perez". See the
-> Phase 3 section of [`DECISIONS.md`](./DECISIONS.md) for what that means and doesn't mean for
-> security.
+Log in with any seeded user's email (e.g. `ana@rewire.dev`) and the demo password from
+`database/seed.json`'s `_meta`.
+
+> The frontend's data layer (`frontend/lib/mock/`) was built ahead of the backend API and still
+> simulates it as of this writing -- wiring it up to the real endpoints above is the next step, not
+> done yet. See the Phase 3 section of [`DECISIONS.md`](./DECISIONS.md) for what the mock does and
+> doesn't prove about security in the meantime.
+
+## API
+
+No OpenAPI/Postman doc yet (tracked in `docs/`, still pending -- see `DECISIONS.md`). Until then,
+the routes themselves (all under `backend/src/presentation/routes/`):
+
+| Method | Path                              | Auth | Notes                                    |
+|--------|------------------------------------|------|-------------------------------------------|
+| POST   | `/auth/register`                   | --   | sets refresh cookie, returns access token |
+| POST   | `/auth/login`                      | --   | same                                      |
+| POST   | `/auth/refresh`                    | cookie | rotates both tokens                     |
+| POST   | `/auth/logout`                     | --   | clears the refresh cookie                 |
+| GET    | `/users/me`                        | yes  |                                            |
+| PATCH  | `/users/me`                        | yes  | `{ fullName?, jobTitle? }`                |
+| GET    | `/channels`                        | yes  | the caller's own channels (RLS)           |
+| POST   | `/channels`                        | yes  | `{ name, description? }`                  |
+| POST   | `/channels/:channelId/members`     | yes  | `{ userId }`, caller must already be a member |
+| GET    | `/channels/:channelId/messages`    | yes  | `?cursor&limit`, keyset pagination        |
+| POST   | `/channels/:channelId/messages`    | yes  | `{ content }`, also broadcasts over the socket |
+| GET    | `/messages/search`                 | yes  | `?q&channelId?&limit`, `ts_headline` highlighted |
+| PATCH  | `/messages/:messageId`             | yes  | author-only, enforced by RLS              |
+| DELETE | `/messages/:messageId`             | yes  | soft delete, author-only, enforced by RLS |
+
+WebSocket (Socket.io, same origin as the backend): connect with `auth: { token: accessToken }`,
+then `socket.emit("channel:join", channelId, callback)` -- `callback(true)` only if the caller is
+actually a member -- and listen for `"message:new"`.
 
 ## Documentation
 

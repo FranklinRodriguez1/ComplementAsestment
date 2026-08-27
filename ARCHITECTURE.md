@@ -23,6 +23,69 @@ interfaces defined in `domain`. The domain never imports `express` or the Postgr
 verified by inspection; no layer-boundary linter is configured (out of scope for the 8-hour
 window).
 
+**Concretely, per layer:**
+
+- `domain/entities/` -- plain interfaces mirroring the database rows (`User`, `Channel`, `Message`,
+  ...), plus `errors/app-error.ts`: a small hierarchy (`ValidationError`, `UnauthorizedError`,
+  `ForbiddenError`, `NotFoundError`, `ConflictError`) that use cases throw and
+  `presentation/middlewares/error-handler.middleware.ts` -- the only place that knows about HTTP
+  status codes -- catches and maps.
+- `domain/repositories/` and `domain/services/` -- interfaces only (`UserRepository`,
+  `ChannelRepository`, `MessageRepository`, `PasswordHasher`, `TokenService`,
+  `RealtimePublisher`). This is the Repository pattern and, for `AIProvider` (coming in the AI
+  phase) the Strategy pattern: the application layer is written entirely against these interfaces,
+  never against `pg`, `bcryptjs`, `jsonwebtoken`, or `socket.io` directly.
+- `application/use-cases/` -- one class per use case (`RegisterUserUseCase`,
+  `SendMessageUseCase`, ...), each constructor-injected with the interfaces it needs and exposing a
+  single `execute(...)`. True to the assignment's own description of a thin use case: validate
+  input (a small `zod` schema per use case) -> call the repository -> map the result to a DTO. No
+  SQL, no HTTP, no framework types anywhere in this folder.
+- `infrastructure/database/` -- `pool.ts` (one `pg.Pool`, connecting as `rw_app`) and
+  `with-actor-transaction.ts`, which every RLS-protected repository method wraps its query in: it
+  runs `SELECT set_config('app.current_user_id', $1, true)` inside the transaction before the real
+  query, which is what makes the RLS policies documented in `database/README.md` apply per-request.
+  `infrastructure/auth/` and `infrastructure/sockets/` implement the remaining domain service
+  interfaces (bcrypt, JWT, Socket.io).
+- `presentation/` -- Express controllers/routes/middlewares. `middlewares/auth.middleware.ts` is
+  the only place `req.userId` is ever set, and only from a JWT's verified `sub` claim -- never from
+  request input, satisfying the "extract userId from the token only" requirement by construction,
+  not by convention.
+- `src/index.ts` -- the composition root: the only file that `new`s up concrete infrastructure
+  classes and wires them into use cases and controllers. No DI container; wiring by hand is about
+  25 lines for a codebase this size.
+
+Dependency injection is therefore visible everywhere a class takes its collaborators through its
+constructor, and every one of those collaborator types is an interface from `domain/`, not a
+concrete infrastructure class -- the definition of the Dependency Inversion Principle, not just an
+assertion of it.
+
+## Backend: REST + WebSocket conventions
+
+- **Errors**: every response error is `{ error: { code, message, correlationId } }`, produced by a
+  single `error-handler.middleware.ts`. A known `AppError` subclass maps to its HTTP status
+  (`ValidationError` -> 400, `UnauthorizedError` -> 401, `ForbiddenError` -> 403, `NotFoundError` ->
+  404, `ConflictError` -> 409); anything else becomes a generic 500 with the real error only logged
+  server-side, never leaked to the client.
+- **Correlation id**: `correlation-id.middleware.ts` reuses an incoming `X-Correlation-Id` header or
+  mints one with `crypto.randomUUID()`, echoes it on the response, and every error payload carries
+  it -- one id to grep across client logs, server logs, and the error response shown to the user.
+- **Pagination**: `GET /channels/:channelId/messages?cursor=...` is keyset, matching
+  `database/queries/01_channel_history_keyset.sql` exactly -- `cursor` is a message's `seq`, never an
+  `OFFSET`. `PgMessageRepository.listByChannel` fetches `limit + 1` rows and drops the extra one to
+  compute `nextCursor`, rather than guessing "is this a full page" from the count alone.
+- **Auth**: `POST /auth/register` and `/auth/login` return a short-lived access token in the JSON
+  body (meant for an `Authorization: Bearer` header, never persisted to `localStorage` by the
+  intended frontend usage) and set a refresh token as an `httpOnly`, `sameSite=lax` cookie (`secure`
+  outside development). `POST /auth/refresh` reads that cookie and rotates both tokens. `req.userId`
+  -- what every other route trusts as "who is making this request" -- is set in exactly one place,
+  `auth.middleware.ts`, and only from the access token's verified `sub` claim.
+- **WebSockets**: Socket.io authenticates once at handshake with the same access token
+  (`socket.handshake.auth.token`), and a `channel:join` only succeeds -- silently no-oping otherwise
+  -- if `ChannelRepository.findById(userId, channelId)` (the same RLS-protected lookup
+  `GET /channels/:id` uses) returns a row. `MessagesController.send` broadcasts the new message to
+  that channel's room (`channel:<id>`) only after the REST write has committed successfully, so the
+  HTTP response and the socket event can never disagree about whether the send actually happened.
+
 ## Database: why RLS instead of only application-layer filters
 
 The non-negotiable requirement is that no user can read content from a channel they don't belong

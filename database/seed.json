@@ -3,11 +3,13 @@
     "description": "Sample data for bd_franklin_rodriguez_thompson. Designed to demonstrate the non-negotiable requirement (per-channel isolation) live, without having to create data by hand.",
     "demo_password": "Demo1234!",
     "demo_password_note": "Every user in this seed shares this DEMO password. The password_hash values below are real bcrypt hashes (cost 12) of that value -- the plaintext password is never stored, not even in test data.",
-    "loading_order": "users -> channels -> channel_members -> messages -> message_reads -> copilot_usage_logs (respects the FKs)."
+    "loading_order": "users -> channels -> channel_members -> messages -> message_reads -> copilot_usage_logs (respects the FKs).",
+    "reference_convention": "channel_members/messages/message_reads/copilot_usage_logs reference users by their explicit `key` below (e.g. \"user_ana\"), and channels by their `name` (e.g. \"general\") -- both resolved by backend/scripts/seed.ts before inserting."
   },
 
   "users": [
     {
+      "key": "user_ana",
       "id": "339d17d2-314d-4980-9c72-92a9949888c8",
       "email": "ana@rewire.dev",
       "password_hash": "$2b$12$VN/pV2.U578XHeyqx2HX0OgOmy2iefMhu1ckbw6o5iNSBoa8mEtEC",
@@ -15,6 +17,7 @@
       "job_title": "Engineering Lead"
     },
     {
+      "key": "user_bruno",
       "id": "2ade5a25-ac3c-45d3-9ff4-e1e32f527fbf",
       "email": "bruno@rewire.dev",
       "password_hash": "$2b$12$wU9/3V4hl1RQmFIZYOO3Y.vL.jD8L8hWSdYnK6oyOIHW6467M/dHi",
@@ -22,6 +25,7 @@
       "job_title": "Product Designer"
     },
     {
+      "key": "user_carla",
       "id": "95fa95cf-06c5-4ce8-9ac7-10263739c092",
       "email": "carla@rewire.dev",
       "password_hash": "$2b$12$/HQRHPJ2vbO/Tvqi0w.8fufaCp78UttqRInF0YUxoH0XfkrFaRdSC",
@@ -29,6 +33,7 @@
       "job_title": "Product Manager"
     },
     {
+      "key": "user_diego",
       "id": "1970b2a5-85ad-4cad-8ef9-dfb66c3f14f8",
       "email": "diego@rewire.dev",
       "password_hash": "$2b$12$AnQRXaUb92PxTJeJx4jAEe8pvFTMV0WjIMizqkmws88JktJLxt0N6",
@@ -36,6 +41,7 @@
       "job_title": "Backend Engineer"
     },
     {
+      "key": "user_elena",
       "id": "2eb0c9c7-2fb1-41cb-8e66-5100b702bf28",
       "email": "elena@rewire.dev",
       "password_hash": "$2b$12$EPrY1HDZU3Dj.pPh8etpaet0OmdN0kS4ylHre1uX1sq/myjZ2dihi",
@@ -103,9 +109,9 @@
   ],
 
   "message_reads": [
-    { "user": "user_ana",   "channel": "general", "last_read_message": "msg:1a960334-362c-4edc-96df-9dc02f39a905" },
-    { "user": "user_bruno", "channel": "general", "last_read_message": "msg:f2255ed0-39af-4174-9f44-b6111cc06b2f" },
-    { "user": "user_diego", "channel": "backend", "last_read_message": "msg:06b094e0-8ab1-40bb-b44d-0dbeae8537c9" }
+    { "user": "user_ana",   "channel": "general", "last_read_message_id": "1a960334-362c-4edc-96df-9dc02f39a905" },
+    { "user": "user_bruno", "channel": "general", "last_read_message_id": "f2255ed0-39af-4174-9f44-b6111cc06b2f" },
+    { "user": "user_diego", "channel": "backend", "last_read_message_id": "06b094e0-8ab1-40bb-b44d-0dbeae8537c9" }
   ],
 
   "copilot_usage_logs": [
