@@ -29,6 +29,7 @@ tags:
   - name: Users
   - name: Channels
   - name: Messages
+  - name: Copilot
   - name: System
 
 paths:
@@ -450,6 +451,43 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/ErrorResponse" }
 
+  /copilot/ask:
+    post:
+      tags: [Copilot]
+      operationId: askCopilot
+      summary: Ask the AI copilot a question grounded in the caller's channels
+      description: >
+        RAG endpoint. The question is embedded, similar messages are
+        retrieved via rw_fn_copilot_context -- which filters by channel
+        membership in SQL and additionally runs under the caller's RLS, so
+        the copilot can never read a channel the caller doesn't belong to
+        -- and the answer cites its sources by index. When nothing relevant
+        is found in the caller's channels the copilot refuses honestly
+        (refused=true) instead of guessing. Every call (including
+        refusals) is logged to rw_copilot_usage_logs with token counts.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AskCopilotRequest"
+      responses:
+        "200":
+          description: Grounded answer (or honest refusal) with citations
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CopilotAnswer"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "503":
+          description: AI provider not configured (missing OPENAI_API_KEY) or unreachable
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+
 components:
   securitySchemes:
     bearerAuth:
@@ -622,6 +660,44 @@ components:
           description: Contains <mark>...</mark> around matched terms (ts_headline).
         createdAt: { type: string, format: date-time }
 
+    AskCopilotRequest:
+      type: object
+      required: [question]
+      properties:
+        question: { type: string, minLength: 1, maxLength: 1000 }
+        channelId:
+          type: string
+          format: uuid
+          nullable: true
+          description: Optionally restrict retrieval to one channel (the caller must still be a member of it).
+
+    CopilotSource:
+      type: object
+      properties:
+        index:
+          type: integer
+          description: Citation number the answer refers to, e.g. [1].
+        messageId: { type: string, format: uuid }
+        channelId: { type: string, format: uuid }
+        channelName: { type: string }
+        authorName: { type: string, nullable: true }
+        excerpt: { type: string, maxLength: 160 }
+        createdAt: { type: string, format: date-time }
+
+    CopilotAnswer:
+      type: object
+      properties:
+        answer: { type: string }
+        refused:
+          type: boolean
+          description: True when nothing relevant was found in the caller's channels and the copilot declined to guess (no chat tokens spent).
+        sources:
+          type: array
+          items: { $ref: "#/components/schemas/CopilotSource" }
+        model:
+          type: string
+          description: Chat model plus the system-prompt version that produced the answer, e.g. "gpt-4o-mini (prompt v1)".
+
     ErrorResponse:
       type: object
       properties:
@@ -630,7 +706,7 @@ components:
           properties:
             code:
               type: string
-              enum: [VALIDATION_ERROR, UNAUTHORIZED, FORBIDDEN, NOT_FOUND, CONFLICT, INTERNAL_ERROR]
+              enum: [VALIDATION_ERROR, UNAUTHORIZED, FORBIDDEN, NOT_FOUND, CONFLICT, SERVICE_UNAVAILABLE, INTERNAL_ERROR]
             message: { type: string }
             correlationId:
               type: string
