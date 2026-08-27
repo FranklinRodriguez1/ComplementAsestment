@@ -13,15 +13,6 @@ const inputSchema = z.object({
 /** How many messages to retrieve as grounding context. */
 const CONTEXT_LIMIT = 8;
 
-/**
- * Below this cosine similarity the retrieved messages are considered
- * unrelated to the question: better an honest "I didn't find that" than an
- * answer stitched from noise. text-embedding-3 similarities run low, so
- * this is deliberately permissive; rule 3 of the system prompt is the
- * second line of defense when a weakly-related message slips through.
- */
-const MIN_SIMILARITY = 0.2;
-
 const REFUSAL_ANSWER =
   "I could not find anything about that in the channels you are a member of, " +
   "so I would rather not guess. Try rephrasing, or ask about something that " +
@@ -35,6 +26,16 @@ export class AskCopilotUseCase {
     private readonly systemPromptTemplate: string,
     private readonly promptVersion: string,
     private readonly chatModel: string,
+    /**
+     * Retrieved messages below this cosine similarity are dropped: better
+     * an honest "I didn't find that" than an answer stitched from noise.
+     * The right value depends on the embedding model (measured on
+     * gemini-embedding-001: relevant hits score >= ~0.55, unrelated ones
+     * ~0.43), so it is configured next to the provider, not hardcoded;
+     * rule 3 of the system prompt is the second line of defense when a
+     * weakly-related message slips through.
+     */
+    private readonly minSimilarity: number,
   ) {}
 
   async execute(actorId: string, rawInput: unknown): Promise<CopilotAnswer> {
@@ -62,7 +63,7 @@ export class AskCopilotUseCase {
     const queryEmbedding = await this.aiProvider.embed(question);
     const context = (
       await this.copilotRepository.getContext(actorId, queryEmbedding, channelId ?? null, CONTEXT_LIMIT)
-    ).filter((item) => item.similarity >= MIN_SIMILARITY);
+    ).filter((item) => item.similarity >= this.minSimilarity);
 
     const model = `${this.chatModel} (prompt ${this.promptVersion})`;
 

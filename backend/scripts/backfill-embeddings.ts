@@ -23,9 +23,11 @@ if (apiKey.length === 0 || apiKey.startsWith("sk-replace")) {
 }
 
 const provider = new OpenAIProvider(
+  process.env.OPENAI_BASE_URL ?? "https://api.openai.com/v1",
   apiKey,
   process.env.OPENAI_CHAT_MODEL ?? "gpt-4o-mini",
   process.env.OPENAI_EMBEDDING_MODEL ?? "text-embedding-3-small",
+  Number(process.env.OPENAI_EMBEDDING_DIMENSIONS ?? 1536),
 );
 
 const client = new Client({

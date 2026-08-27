@@ -61,7 +61,13 @@ const copilotRepository = new PgCopilotRepository(pool);
 // clear 503 and new messages simply stay un-embedded until backfilled.
 const aiConfigured = env.OPENAI_API_KEY.length > 0 && !env.OPENAI_API_KEY.startsWith("sk-replace");
 const aiProvider = aiConfigured
-  ? new OpenAIProvider(env.OPENAI_API_KEY, env.OPENAI_CHAT_MODEL, env.OPENAI_EMBEDDING_MODEL)
+  ? new OpenAIProvider(
+      env.OPENAI_BASE_URL,
+      env.OPENAI_API_KEY,
+      env.OPENAI_CHAT_MODEL,
+      env.OPENAI_EMBEDDING_MODEL,
+      env.OPENAI_EMBEDDING_DIMENSIONS,
+    )
   : null;
 if (!aiConfigured) {
   console.warn("OPENAI_API_KEY not set: copilot disabled (POST /copilot/ask will answer 503)");
@@ -102,6 +108,7 @@ const askCopilot = new AskCopilotUseCase(
   systemPromptTemplate,
   PROMPT_VERSION,
   env.OPENAI_CHAT_MODEL,
+  env.COPILOT_MIN_SIMILARITY,
 );
 const messageEmbedder = new MessageEmbedder(aiProvider, copilotRepository);
 

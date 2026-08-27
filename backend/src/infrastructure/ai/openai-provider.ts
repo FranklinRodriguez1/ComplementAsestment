@@ -1,8 +1,6 @@
 import { ServiceUnavailableError } from "@domain/errors/app-error";
 import type { AIProvider, ChatCompletion, ChatInput } from "@domain/services/ai-provider";
 
-const OPENAI_BASE_URL = "https://api.openai.com/v1";
-
 interface EmbeddingsResponse {
   data: { index: number; embedding: number[] }[];
 }
@@ -15,22 +13,27 @@ interface ChatCompletionsResponse {
 
 /**
  * First (and only, for now) AIProvider implementation. Plain `fetch`
- * against the OpenAI REST API instead of the official SDK: two endpoints
- * and a bearer header don't justify a dependency, and every line stays
- * explainable. Failures surface as ServiceUnavailableError (503) so a
- * vendor outage is never confused with a bug in our own code (500).
+ * against the OpenAI-compatible REST protocol instead of the official SDK:
+ * two endpoints and a bearer header don't justify a dependency, and every
+ * line stays explainable. The base URL is injected, so the same class
+ * serves any vendor speaking this protocol (OpenAI, Gemini's compatibility
+ * endpoint, a local server) -- switching vendors is an .env change.
+ * Failures surface as ServiceUnavailableError (503) so a vendor outage is
+ * never confused with a bug in our own code (500).
  */
 export class OpenAIProvider implements AIProvider {
   constructor(
+    private readonly baseUrl: string,
     private readonly apiKey: string,
     private readonly chatModel: string,
     private readonly embeddingModel: string,
+    private readonly embeddingDimensions: number,
   ) {}
 
   private async post<T>(path: string, body: unknown): Promise<T> {
     let response: Response;
     try {
-      response = await fetch(`${OPENAI_BASE_URL}${path}`, {
+      response = await fetch(`${this.baseUrl}${path}`, {
         method: "POST",
         headers: {
           Authorization: `Bearer ${this.apiKey}`,
@@ -62,6 +65,9 @@ export class OpenAIProvider implements AIProvider {
     const result = await this.post<EmbeddingsResponse>("/embeddings", {
       model: this.embeddingModel,
       input: texts,
+      // Pin the output size to the rw_messages.embedding column width;
+      // models with a fixed native size simply ignore this field.
+      dimensions: this.embeddingDimensions,
     });
     // The API documents that `data` can come back out of order; sort by
     // index so row N always matches input N.
