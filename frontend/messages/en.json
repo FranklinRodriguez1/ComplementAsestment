@@ -1,0 +1,82 @@
+{
+  "app": {
+    "name": "Riwi Messenger"
+  },
+  "theme": {
+    "toggleToLight": "Switch to light mode",
+    "toggleToDark": "Switch to dark mode"
+  },
+  "locale": {
+    "label": "Language",
+    "en": "English",
+    "es": "Spanish"
+  },
+  "nav": {
+    "channels": "Channels",
+    "profile": "Profile",
+    "conversation": "Conversation",
+    "copilot": "Copilot"
+  },
+  "sidebar": {
+    "title": "Channels",
+    "loading": "Loading channels…",
+    "empty": "You are not a member of any channel yet.",
+    "error": "Couldn't load your channels.",
+    "retry": "Retry"
+  },
+  "conversation": {
+    "selectChannelTitle": "Select a channel",
+    "selectChannelDescription": "Choose a channel from the sidebar to see its messages.",
+    "loadingHistory": "Loading messages…",
+    "loadingOlder": "Loading older messages…",
+    "empty": "No messages yet. Say hello!",
+    "error": "Couldn't load the message history.",
+    "retry": "Retry",
+    "composerPlaceholder": "Message #{channel}",
+    "composerLabel": "Write a message",
+    "send": "Send",
+    "statusPending": "Sending…",
+    "statusSent": "Sent",
+    "statusFailed": "Failed to send",
+    "retrySend": "Retry",
+    "membersCount": "{count, plural, one {# member} other {# members}}"
+  },
+  "copilot": {
+    "title": "Copilot",
+    "description": "Ask about this channel's history. Answers only use messages you have access to, and cite their sources.",
+    "placeholder": "Ask the copilot about #{channel}…",
+    "inputLabel": "Ask the copilot",
+    "ask": "Ask",
+    "thinking": "Thinking…",
+    "empty": "Ask a question about this channel to get started.",
+    "error": "The copilot couldn't answer that. Try again.",
+    "retry": "Retry",
+    "sourcesLabel": "Sources",
+    "noSources": "No source messages were used for this answer.",
+    "refusalMessage": "I don't have enough information in this channel to answer that.",
+    "openPanel": "Open copilot",
+    "closePanel": "Close copilot",
+    "you": "You"
+  },
+  "profile": {
+    "title": "Profile",
+    "subtitle": "Your account information.",
+    "fullNameLabel": "Full name",
+    "jobTitleLabel": "Job title",
+    "emailLabel": "Email",
+    "emailReadOnlyHint": "Your email cannot be changed here.",
+    "save": "Save changes",
+    "saving": "Saving…",
+    "saveSuccess": "Profile updated.",
+    "saveError": "Couldn't save your changes. Try again.",
+    "validation": {
+      "fullNameRequired": "Full name is required.",
+      "jobTitleRequired": "Job title is required."
+    }
+  },
+  "common": {
+    "back": "Back",
+    "loading": "Loading…",
+    "retry": "Retry"
+  }
+}

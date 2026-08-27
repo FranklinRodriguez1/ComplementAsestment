@@ -1,0 +1,61 @@
+@import "tailwindcss";
+
+/*
+ * Tailwind v4 is CSS-first: there is no tailwind.config.ts in this project.
+ * STYLE.md's palette (documented there as a tailwind.config.ts snippet) is
+ * translated here into the v4 @theme block instead, which is the idiomatic
+ * way to register custom design tokens in this version.
+ */
+@theme {
+  --color-brand: #ff6b35;
+  --color-brand-hover: #e5541f;
+
+  --color-status-success: #22c55e;
+  --color-status-error: #ef4444;
+  --color-status-pending: #fbbf24;
+
+  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, monospace;
+}
+
+/*
+ * Light/dark tokens are plain CSS custom properties (not @theme colors):
+ * their VALUE depends on the .dark class, so they must live in :root /
+ * .dark blocks rather than in the static @theme block above. Components
+ * reference them as bg-background, text-foreground, etc. via the
+ * `@theme inline` bridge below.
+ */
+:root {
+  --background: #ffffff;
+  --background-secondary: #f7f7f8;
+  --foreground: #1a1a2e;
+  --foreground-secondary: #6b7280;
+  --border-color: #e5e7eb;
+}
+
+.dark {
+  --background: #0f1117;
+  --background-secondary: #181b24;
+  --foreground: #f5f5f7;
+  --foreground-secondary: #9ca3af;
+  --border-color: #2a2d3a;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-background-secondary: var(--background-secondary);
+  --color-foreground: var(--foreground);
+  --color-foreground-secondary: var(--foreground-secondary);
+  --color-border: var(--border-color);
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans);
+}
+
+/* Keep the same spacing/visual rhythm in both modes; only colors change. */
+* {
+  border-color: var(--border-color);
+}

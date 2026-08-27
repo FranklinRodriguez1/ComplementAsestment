@@ -1,0 +1,82 @@
+{
+  "app": {
+    "name": "Riwi Messenger"
+  },
+  "theme": {
+    "toggleToLight": "Cambiar a modo claro",
+    "toggleToDark": "Cambiar a modo oscuro"
+  },
+  "locale": {
+    "label": "Idioma",
+    "en": "Inglés",
+    "es": "Español"
+  },
+  "nav": {
+    "channels": "Canales",
+    "profile": "Perfil",
+    "conversation": "Conversación",
+    "copilot": "Copiloto"
+  },
+  "sidebar": {
+    "title": "Canales",
+    "loading": "Cargando canales…",
+    "empty": "Todavía no eres miembro de ningún canal.",
+    "error": "No se pudieron cargar tus canales.",
+    "retry": "Reintentar"
+  },
+  "conversation": {
+    "selectChannelTitle": "Selecciona un canal",
+    "selectChannelDescription": "Elige un canal en la barra lateral para ver sus mensajes.",
+    "loadingHistory": "Cargando mensajes…",
+    "loadingOlder": "Cargando mensajes anteriores…",
+    "empty": "Todavía no hay mensajes. ¡Saluda!",
+    "error": "No se pudo cargar el historial de mensajes.",
+    "retry": "Reintentar",
+    "composerPlaceholder": "Mensaje para #{channel}",
+    "composerLabel": "Escribe un mensaje",
+    "send": "Enviar",
+    "statusPending": "Enviando…",
+    "statusSent": "Enviado",
+    "statusFailed": "No se pudo enviar",
+    "retrySend": "Reintentar",
+    "membersCount": "{count, plural, one {# miembro} other {# miembros}}"
+  },
+  "copilot": {
+    "title": "Copiloto",
+    "description": "Pregunta sobre el historial de este canal. Las respuestas solo usan mensajes a los que tienes acceso, y citan sus fuentes.",
+    "placeholder": "Pregúntale al copiloto sobre #{channel}…",
+    "inputLabel": "Pregúntale al copiloto",
+    "ask": "Preguntar",
+    "thinking": "Pensando…",
+    "empty": "Haz una pregunta sobre este canal para comenzar.",
+    "error": "El copiloto no pudo responder eso. Intenta de nuevo.",
+    "retry": "Reintentar",
+    "sourcesLabel": "Fuentes",
+    "noSources": "No se usó ningún mensaje como fuente para esta respuesta.",
+    "refusalMessage": "No tengo información suficiente en este canal para responder eso.",
+    "openPanel": "Abrir copiloto",
+    "closePanel": "Cerrar copiloto",
+    "you": "Tú"
+  },
+  "profile": {
+    "title": "Perfil",
+    "subtitle": "Información de tu cuenta.",
+    "fullNameLabel": "Nombre completo",
+    "jobTitleLabel": "Cargo",
+    "emailLabel": "Correo electrónico",
+    "emailReadOnlyHint": "Tu correo no se puede cambiar desde aquí.",
+    "save": "Guardar cambios",
+    "saving": "Guardando…",
+    "saveSuccess": "Perfil actualizado.",
+    "saveError": "No se pudieron guardar los cambios. Intenta de nuevo.",
+    "validation": {
+      "fullNameRequired": "El nombre completo es obligatorio.",
+      "jobTitleRequired": "El cargo es obligatorio."
+    }
+  },
+  "common": {
+    "back": "Volver",
+    "loading": "Cargando…",
+    "retry": "Reintentar"
+  }
+}

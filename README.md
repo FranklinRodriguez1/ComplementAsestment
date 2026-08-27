@@ -89,8 +89,15 @@ bun run dev   # http://localhost:4000/health
 # Frontend
 cd frontend
 bun install
-bun run dev   # http://localhost:3000
+bun run dev   # http://localhost:3000 -> redirects to /en/channels (or /es/channels)
 ```
+
+> The frontend was built ahead of the backend API, at the user's request: its data layer
+> (`frontend/lib/mock/`) currently simulates the backend (same shapes as the real endpoints,
+> artificial latency, a simulated send-failure rate) using the same users/channels/messages as
+> `database/seed.json`. Log in isn't wired up yet -- the mock session is always "Ana Perez". See the
+> Phase 3 section of [`DECISIONS.md`](./DECISIONS.md) for what that means and doesn't mean for
+> security.
 
 ## Documentation
 

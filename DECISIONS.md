@@ -60,3 +60,56 @@
   database identifiers (`rw_` prefix, English table/column names) -- a deliberate consistency
   choice made explicit by the user partway through the database phase, applied retroactively to
   every file written before that point.
+
+## Phase 3 -- Frontend (views, ahead of the backend)
+
+Built before the backend REST/WebSocket API, on the user's request. To make that possible without
+faking the UI:
+
+- **Mock data layer (`lib/mock/`) stands in for the backend.** `lib/mock/api.ts` exposes async
+  functions shaped exactly like the eventual real calls (same params, same return types, artificial
+  latency, a simulated failure rate on send) and `lib/mock/fixtures.ts` reuses the same ids/content
+  as `database/seed.json`. Every TanStack Query hook in `lib/query/` calls only this module -- when
+  the backend exists, swapping its internals for real `fetch`/socket calls should not require
+  touching a single component.
+- **The mock's channel-membership gate is a preview of RLS, not a replacement for it.**
+  `fetchMessages` returns an empty page for a channel the mock session user isn't a member of,
+  mirroring the shape of what real RLS enforcement returns -- but this check runs in the browser and
+  proves nothing about security. The actual guarantee is the database's RLS policies (see
+  `database/README.md`); this is only here so the UI has something real to render before that API
+  exists.
+- **No shadcn/ui.** `components/ui/` is a half-dozen hand-rolled primitives (button, avatar,
+  loading/empty/error states, theme toggle, locale switcher) instead. shadcn would have been faster
+  to scaffold, but it generates a lot of code (CVA, Radix wrappers, a `components.json`) that's
+  harder to justify line-by-line than a handful of small components written for exactly this UI.
+- **`lucide-react` for icons.** The one exception to "no extra UI library": a single, tree-shakeable,
+  widely-known SVG icon set beats hand-drawing half a dozen icons, and each one used is easy to point
+  to and explain.
+- **Responsive "master-detail" layout without parallel/intercepting routes.** Conversation, copilot
+  panel, and profile satisfy "minimum 3 zones" as: `/channels/[id]` renders conversation + copilot
+  side by side (their own `mobilePane` tab switch below the `lg` breakpoint, since a phone can't show
+  both), and `/profile` is a separate route. The sidebar hides itself on mobile via a plain
+  `hidden lg:flex` keyed off "is a channel or profile currently open" -- no Next.js parallel-routes
+  complexity needed for what is, underneath, just two CSS breakpoints.
+- **Optimistic send via TanStack Query, not a hand-rolled queue.** `useSendMessage`
+  (`lib/query/messages.ts`) inserts a `pending` message into the infinite-query cache in `onMutate`,
+  swaps it for the server's response in `onSuccess`, and flips it to `failed` (keeping it, with a
+  retry action) in `onError`. Verified against the mock's real ~20% simulated failure rate in a
+  headless browser, not just eyeballed as a static UI state.
+- **Keyset-pagination-preserving scroll position is hand-implemented**, not delegated to a library:
+  `MessageList` measures `scrollHeight` right before fetching an older page and shifts `scrollTop` by
+  the exact delta once the DOM updates, so prepending older messages never visually jumps the
+  viewport. Confirmed by scripting a scroll-to-top in a headless browser and watching the loaded
+  message count grow without the anchor message moving.
+- **The copilot panel's mock keyword-match "RAG"** refuses honestly (a translated "not enough
+  information" message) when nothing in the channel matches the question, instead of ever
+  fabricating an answer -- the same contract `rw_fn_copilot_context` will enforce for real once the
+  backend exists, just previewed here so the empty/refusal state in the UI is real, not decorative.
+- **`middleware.ts` renamed to `proxy.ts`** immediately after first noticing the deprecation warning
+  from `next dev`: Next.js 16 renamed the convention (`filename + exported function`) to `proxy` to
+  reflect what it actually does; keeping the old name would have shipped a deprecated pattern from
+  day one in a brand-new project.
+- **`next-intl`'s server-side `redirect()` requires an explicit `{ href, locale }`**, unlike the
+  plain-string form that works in the client hook -- found by running `tsc --noEmit`, not by
+  guessing; fixed by reading the current locale with `getLocale()` in the root page before
+  redirecting to `/channels`.

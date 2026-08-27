@@ -52,3 +52,37 @@ without touching business logic (Strategy pattern).
 
 > Expanded in the AI phase: context retrieval with permissions validated in SQL, source citation,
 > versioned prompt, sanitization against prompt injection.
+
+## Frontend: built ahead of the backend, on a swappable data layer
+
+The frontend was implemented before the backend's REST/WebSocket API existed, at the user's
+request. Every screen still needed to be real (not a static mockup), so the data layer is split
+so that only one module is a stand-in:
+
+```
+lib/mock/          fixtures.ts (seed-data-shaped records) + api.ts (async, latency-simulating
+                    functions matching the eventual real endpoints)
+lib/query/          TanStack Query hooks -- the ONLY callers of lib/mock/api.ts
+lib/stores/         Zustand -- client-only UI state (theme, active mobile pane)
+components/         conversation/, copilot/, profile/, layout/, ui/
+app/[locale]/       routes (next-intl), thin Server Components that hand off to client components
+```
+
+`lib/query/*` hooks are written against `lib/mock/api.ts`'s function signatures, not its
+implementation. Replacing that one file with real `fetch`/Socket.io calls in the backend-
+integration pass should not require touching a hook's call sites or any component.
+
+**Why TanStack Query owns server state and Zustand owns UI state, not one library for both:**
+channels/messages/profile are cached, revalidated, paginated data with a natural request lifecycle
+(loading/error/stale) that TanStack Query already models; theme and "which mobile pane is open" are
+synchronous, this-tab-only, no-network state that would just add ceremony inside a query cache.
+
+**Message send state (pending -> sent -> failed) is a TanStack Query optimistic mutation**, not a
+separate local queue: `onMutate` writes a `pending` message straight into the paginated cache,
+`onSuccess`/`onError` resolve it in place. One code path, one source of truth for what's currently
+on screen.
+
+**Per-channel isolation is only previewed client-side here**, not enforced: the mock API returns an
+empty page for a channel the session user isn't a member of, so the UI has a real empty state to
+render, but nothing about this proves security -- that guarantee is entirely the database's RLS
+(see above), which the frontend has no way to bypass once it's talking to the real backend.
